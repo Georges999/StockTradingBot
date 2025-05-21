@@ -1,16 +1,14 @@
 # Stock Trading Bot
 
-A stock trading bot with signal generation and automated trading capabilities through Alpaca Markets.
+A stock trading bot with signal generation and automated trading capabilities through Alpaca Markets(paper only/fake money, you can make it for real money just plug in your live trading API key and secret key from alpaca).
 
 ## New Unified Interface
 
-The project now uses a unified interface system:
 
 - **Main Interface**: `auto_interface.py` - The primary GUI application with both signal generation and automated trading abilities
 - **Command Line Auto Trader**: `auto_trader.py` - Command line version of the automated trading system
 - **API Integration**: `trader.py` - Connects to Alpaca Markets API for order execution
 
-**Note**: The original `interface.py` can be safely deleted as it's been replaced by the more comprehensive `auto_interface.py`.
 
 ## Features
 
