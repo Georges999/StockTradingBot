@@ -325,17 +325,24 @@ class StockTradingBotGUI(tk.Tk):
         if self.bot_running:
             return
         
+        # Get settings
+        symbol_list = [s.strip() for s in self.symbols.get().split(',')]
+        
+        # Warn if too many symbols
+        if len(symbol_list) > 10:
+            if not messagebox.askyesno("Warning", 
+                "You've selected more than 10 symbols, which may cause performance issues.\n\nProcessing many symbols at once can lead to high resource usage and potential freezing.\n\nDo you want to continue anyway?"):
+                return
+        
+        strategy_name = self.strategy.get()
+        interval = self.interval.get()
+        update_interval = self.update_interval.get()
+        
         # Update UI
         self.bot_running = True
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.status_var.set("Bot running...")
-        
-        # Get settings
-        symbol_list = [s.strip() for s in self.symbols.get().split(',')]
-        strategy_name = self.strategy.get()
-        interval = self.interval.get()
-        update_interval = self.update_interval.get()
         
         # Start bot in a separate thread
         self.bot_thread = threading.Thread(
@@ -369,6 +376,9 @@ class StockTradingBotGUI(tk.Tk):
                     try:
                         if not self.bot_running:
                             break
+                            
+                        # Update status for current symbol
+                        self.after(0, lambda s=symbol: self.status_var.set(f"Processing {s}..."))
                             
                         # Fetch stock data
                         logger.info(f"Fetching data for {symbol}")
@@ -416,28 +426,45 @@ class StockTradingBotGUI(tk.Tk):
                         # Update the signal display
                         self.after(0, self.update_signal_display)
                         
-                        # Visualize the data
-                        if 'rsi' in signal_data.columns:
-                            self.visualizer.plot_rsi(signal_data, symbol)
-                        else:
-                            self.visualizer.plot_signals(signal_data, symbol)
+                        # Visualize the data (only if we're still running to prevent unnecessary work)
+                        if self.bot_running:
+                            if 'rsi' in signal_data.columns:
+                                self.visualizer.plot_rsi(signal_data, symbol)
+                            else:
+                                self.visualizer.plot_signals(signal_data, symbol)
                             
-                        # Update available charts
-                        self.after(0, self.update_available_charts)
+                            # Small delay to prevent UI from freezing
+                            time.sleep(0.1)
+                            
+                        # Update available charts (but not on every symbol to reduce overhead)
+                        if symbols.index(symbol) == len(symbols) - 1:  # Only on last symbol
+                            self.after(0, self.update_available_charts)
                         
                     except Exception as e:
                         logger.error(f"Error processing {symbol}: {str(e)}")
+                    
+                    # Short delay between symbols to allow UI to update
+                    time.sleep(0.5)
                 
                 # Clean up old figures
-                self.visualizer.clean_old_figures(max_figures=30)
+                if self.bot_running:
+                    self.visualizer.clean_old_figures(max_figures=30)
+                
+                # Update status to show we're waiting
+                self.after(0, lambda: self.status_var.set(f"Waiting {update_interval} seconds for next update"))
                 
                 # Wait for the next update if still running
-                if self.bot_running:
-                    logger.info(f"Waiting {update_interval} seconds for next update")
-                    for _ in range(update_interval):
-                        if not self.bot_running:
-                            break
-                        time.sleep(1)
+                # Break this into smaller chunks to be more responsive to stop button
+                chunk_size = 1  # Sleep 1 second at a time
+                for _ in range(update_interval // chunk_size):
+                    if not self.bot_running:
+                        break
+                    time.sleep(chunk_size)
+                
+                # Sleep any remaining time
+                remainder = update_interval % chunk_size
+                if remainder > 0 and self.bot_running:
+                    time.sleep(remainder)
         
         except Exception as e:
             logger.error(f"Bot error: {str(e)}")
@@ -561,6 +588,13 @@ class StockTradingBotGUI(tk.Tk):
     def refresh_data(self):
         """Refresh data for the currently configured symbols without starting the bot."""
         symbol_list = [s.strip() for s in self.symbols.get().split(',')]
+        
+        # Warn if too many symbols
+        if len(symbol_list) > 10:
+            if not messagebox.askyesno("Warning", 
+                "You've selected more than 10 symbols, which may cause performance issues.\n\nProcessing many symbols at once can lead to high resource usage and potential freezing.\n\nDo you want to continue anyway?"):
+                return
+        
         strategy_name = self.strategy.get()
         interval = self.interval.get()
         
@@ -573,8 +607,12 @@ class StockTradingBotGUI(tk.Tk):
     def refresh_data_thread(self, symbols, strategy_name, interval):
         """Thread function to refresh data."""
         try:
+            # Process each symbol
             for symbol in symbols:
                 try:
+                    # Update status for current symbol
+                    self.after(0, lambda s=symbol: self.status_var.set(f"Refreshing data for {s}..."))
+                    
                     # Fetch stock data
                     logger.info(f"Fetching data for {symbol}")
                     stock_data = self.data_fetcher.get_stock_data(symbol, period='1mo', interval=interval)
@@ -626,12 +664,21 @@ class StockTradingBotGUI(tk.Tk):
                         self.visualizer.plot_rsi(signal_data, symbol)
                     else:
                         self.visualizer.plot_signals(signal_data, symbol)
-                        
+                    
+                    # Small delay to prevent UI from freezing
+                    time.sleep(0.1)
+                    
                 except Exception as e:
                     logger.error(f"Error processing {symbol}: {str(e)}")
+                
+                # Short delay between symbols to allow UI to update
+                time.sleep(0.5)
             
             # Update available charts
             self.after(0, self.update_available_charts)
+            
+            # Clean up old figures
+            self.visualizer.clean_old_figures(max_figures=30)
             
             # Update status
             self.after(0, lambda: self.status_var.set("Data refresh complete"))

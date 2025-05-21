@@ -115,53 +115,73 @@ class Visualizer:
             logger.warning("No signal column in data")
             return self.plot_stock_data(data, symbol, save, filename)
         
-        # Create figure and axes
-        fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
-        
-        # Plot price data
-        ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
-        
-        # Add moving averages if available
-        for col in data.columns:
-            if col.startswith('sma_') or col.startswith('ema_'):
-                ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
-        
-        # Plot buy signals
-        buy_signals = data[data['signal'] == 1]
-        if not buy_signals.empty:
-            ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
-        
-        # Plot sell signals
-        sell_signals = data[data['signal'] == -1]
-        if not sell_signals.empty:
-            ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
-        
-        # Plot volume
-        ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
-        
-        # Format axes
-        ax1.set_title(f'{symbol} Trading Signals', fontsize=14)
-        ax1.set_ylabel('Price ($)', fontsize=12)
-        ax1.grid(True, alpha=0.3)
-        ax1.legend(loc='best')
-        
-        ax2.set_xlabel('Date', fontsize=12)
-        ax2.set_ylabel('Volume', fontsize=12)
-        ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        
-        # Save figure if requested
-        if save:
-            if filename is None:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{symbol}_signals_{timestamp}.png"
+        try:
+            # Limit the data points to prevent memory issues (use last 60 points)
+            if len(data) > 60:
+                data = data.iloc[-60:]
             
-            filepath = os.path.join(self.figure_dir, filename)
-            plt.savefig(filepath, dpi=100)
-            logger.info(f"Saved signals chart to {filepath}")
-        
-        return fig, (ax1, ax2)
+            # Use a lower DPI to reduce file size and processing time
+            plt.rcParams['figure.dpi'] = 80
+            
+            # Create figure and axes
+            fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+            
+            # Plot price data
+            ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
+            
+            # Add moving averages if available (limit to just a few for performance)
+            ma_count = 0
+            for col in data.columns:
+                if col.startswith('sma_') or col.startswith('ema_'):
+                    ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
+                    ma_count += 1
+                    if ma_count >= 2:  # Limit to 2 MAs
+                        break
+            
+            # Plot buy signals
+            buy_signals = data[data['signal'] == 1]
+            if not buy_signals.empty:
+                ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
+            
+            # Plot sell signals
+            sell_signals = data[data['signal'] == -1]
+            if not sell_signals.empty:
+                ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
+            
+            # Plot volume
+            ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
+            
+            # Format axes
+            ax1.set_title(f'{symbol} Trading Signals', fontsize=14)
+            ax1.set_ylabel('Price ($)', fontsize=12)
+            ax1.grid(True, alpha=0.3)
+            ax1.legend(loc='best')
+            
+            ax2.set_xlabel('Date', fontsize=12)
+            ax2.set_ylabel('Volume', fontsize=12)
+            ax2.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            # Save figure if requested
+            if save:
+                if filename is None:
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{symbol}_signals_{timestamp}.png"
+                
+                filepath = os.path.join(self.figure_dir, filename)
+                plt.savefig(filepath, dpi=80, bbox_inches='tight')
+                logger.info(f"Saved signals chart to {filepath}")
+            
+            # Close the figure immediately to free up memory
+            plt.close(fig)
+            
+            return fig, (ax1, ax2)
+            
+        except Exception as e:
+            logger.error(f"Error plotting signals: {str(e)}")
+            plt.close()  # Make sure we close any open figures
+            return None, None
     
     def plot_rsi(self, data, symbol, save=True, filename=None):
         """
@@ -184,65 +204,85 @@ class Visualizer:
             logger.warning("No RSI column in data")
             return self.plot_stock_data(data, symbol, save, filename)
         
-        # Create figure with 3 subplots
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, sharex=True)
-        
-        # Plot price data
-        ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
-        
-        # Add moving averages if available
-        for col in data.columns:
-            if col.startswith('sma_') or col.startswith('ema_'):
-                ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
-        
-        # Plot buy signals if available
-        if 'signal' in data.columns:
-            buy_signals = data[data['signal'] == 1]
-            if not buy_signals.empty:
-                ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
+        try:
+            # Limit the data points to prevent memory issues (use last 60 points)
+            if len(data) > 60:
+                data = data.iloc[-60:]
             
-            # Plot sell signals
-            sell_signals = data[data['signal'] == -1]
-            if not sell_signals.empty:
-                ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
-        
-        # Plot volume
-        ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
-        
-        # Plot RSI
-        ax3.plot(data.index, data['rsi'], label='RSI', color='purple', linewidth=1.5)
-        ax3.axhline(y=70, color='red', linestyle='--', alpha=0.5)
-        ax3.axhline(y=30, color='green', linestyle='--', alpha=0.5)
-        ax3.text(data.index[0], 70, 'Overbought', color='red', fontsize=10)
-        ax3.text(data.index[0], 30, 'Oversold', color='green', fontsize=10)
-        ax3.set_ylim(0, 100)
-        
-        # Format axes
-        ax1.set_title(f'{symbol} with RSI', fontsize=14)
-        ax1.set_ylabel('Price ($)', fontsize=12)
-        ax1.grid(True, alpha=0.3)
-        ax1.legend(loc='best')
-        
-        ax2.set_ylabel('Volume', fontsize=12)
-        ax2.grid(True, alpha=0.3)
-        
-        ax3.set_xlabel('Date', fontsize=12)
-        ax3.set_ylabel('RSI', fontsize=12)
-        ax3.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        
-        # Save figure if requested
-        if save:
-            if filename is None:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{symbol}_rsi_{timestamp}.png"
+            # Use a lower DPI to reduce file size and processing time
+            plt.rcParams['figure.dpi'] = 80
             
-            filepath = os.path.join(self.figure_dir, filename)
-            plt.savefig(filepath, dpi=100)
-            logger.info(f"Saved RSI chart to {filepath}")
-        
-        return fig, (ax1, ax2, ax3)
+            # Create figure with 3 subplots
+            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, sharex=True)
+            
+            # Plot price data
+            ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
+            
+            # Add moving averages if available (limit to just a few for performance)
+            ma_count = 0
+            for col in data.columns:
+                if col.startswith('sma_') or col.startswith('ema_'):
+                    ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
+                    ma_count += 1
+                    if ma_count >= 2:  # Limit to 2 MAs
+                        break
+            
+            # Plot buy signals if available
+            if 'signal' in data.columns:
+                buy_signals = data[data['signal'] == 1]
+                if not buy_signals.empty:
+                    ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
+                
+                # Plot sell signals
+                sell_signals = data[data['signal'] == -1]
+                if not sell_signals.empty:
+                    ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
+            
+            # Plot volume
+            ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
+            
+            # Plot RSI
+            ax3.plot(data.index, data['rsi'], label='RSI', color='purple', linewidth=1.5)
+            ax3.axhline(y=70, color='red', linestyle='--', alpha=0.5)
+            ax3.axhline(y=30, color='green', linestyle='--', alpha=0.5)
+            ax3.text(data.index[0], 70, 'Overbought', color='red', fontsize=10)
+            ax3.text(data.index[0], 30, 'Oversold', color='green', fontsize=10)
+            ax3.set_ylim(0, 100)
+            
+            # Format axes
+            ax1.set_title(f'{symbol} with RSI', fontsize=14)
+            ax1.set_ylabel('Price ($)', fontsize=12)
+            ax1.grid(True, alpha=0.3)
+            ax1.legend(loc='best')
+            
+            ax2.set_ylabel('Volume', fontsize=12)
+            ax2.grid(True, alpha=0.3)
+            
+            ax3.set_xlabel('Date', fontsize=12)
+            ax3.set_ylabel('RSI', fontsize=12)
+            ax3.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            # Save figure if requested
+            if save:
+                if filename is None:
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{symbol}_rsi_{timestamp}.png"
+                
+                filepath = os.path.join(self.figure_dir, filename)
+                plt.savefig(filepath, dpi=80, bbox_inches='tight')
+                logger.info(f"Saved RSI chart to {filepath}")
+            
+            # Close the figure immediately to free up memory
+            plt.close(fig)
+            
+            return fig, (ax1, ax2, ax3)
+            
+        except Exception as e:
+            logger.error(f"Error plotting RSI: {str(e)}")
+            plt.close()  # Make sure we close any open figures
+            return None, None
     
     def clean_old_figures(self, max_figures=20):
         """
