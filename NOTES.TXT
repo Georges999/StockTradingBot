@@ -1,0 +1,15 @@
+Data requirement issue:
+Yes, the Breakout and Mean Reversion strategies require at least 30 historical bars (price points) to function properly. You're seeing those warnings because you don't have enough historical data points.
+The 'signal' error:
+This error happens because when strategies can't generate proper signals (due to insufficient data), they don't populate the 'signal' column that the code tries to access later.
+Settings recommendations:
+For more bars and better operation:
+Use --interval 1h instead of 1d to get more data points faster
+Increase the period parameter: --period 3mo instead of the default 1mo
+Alternatively, start with simpler strategies like MA Crossover or RSI Strategy which need fewer data points
+Markets available:
+With Alpaca, you can only trade US markets (NYSE, NASDAQ, AMEX) during regular trading hours (9:30 AM - 4:00 PM Eastern Time). Alpaca doesn't support international markets.
+Change interval to 1h in settings
+Disable Breakout and Mean Reversion strategies initially
+Start with fewer symbols (2-3) to test
+The system needs time to accumulate enough data points (bars) for the more complex strategies, especially when using daily intervals.

@@ -1,16 +1,31 @@
 # Stock Trading Bot
 
-A simple, clean stock trading bot with minimal dependencies. This bot fetches stock data, applies trading strategies, and visualizes trading signals.
+A stock trading bot with signal generation and automated trading capabilities through Alpaca Markets.
+
+## New Unified Interface
+
+The project now uses a unified interface system:
+
+- **Main Interface**: `auto_interface.py` - The primary GUI application with both signal generation and automated trading abilities
+- **Command Line Auto Trader**: `auto_trader.py` - Command line version of the automated trading system
+- **API Integration**: `trader.py` - Connects to Alpaca Markets API for order execution
+
+**Note**: The original `interface.py` can be safely deleted as it's been replaced by the more comprehensive `auto_interface.py`.
 
 ## Features
 
 - **Data Fetching**: Retrieves historical stock data using yfinance
-- **Trading Strategies**: 
-  - Moving Average Crossover
-  - RSI (Relative Strength Index)
-  - Momentum
+- **Advanced Trading Strategies**: 
+  - Enhanced Moving Average Crossover
+  - RSI Strategy with dynamic thresholds
+  - Momentum Strategy with volume confirmation
+  - Breakout Strategy (requires 30+ data bars)
+  - Mean Reversion Strategy (requires 30+ data bars)
+  - Dual Strategy System
 - **Visualizations**: Generates charts with trading signals
-- **Modular Design**: Easy to extend with new strategies
+- **Automated Trading**: Executes trades through Alpaca Markets API
+- **Strategy Selection**: Automatically picks the best strategy based on market conditions
+- **Risk Management**: Position sizing, maximum positions limit, stop losses
 
 ## Installation
 
@@ -23,60 +38,65 @@ cd StockTradingBot
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
+pip install alpaca-trade-api
+```
+
+3. Set up your Alpaca API credentials in a `.env` file:
+```
+ALPACA_API_KEY=your_api_key_here
+ALPACA_SECRET_KEY=your_secret_key_here
+ALPACA_BASE_URL=https://paper-api.alpaca.markets
 ```
 
 ## Usage
 
-Run the bot with default settings:
+### GUI Interface
+
+Launch the GUI interface with all features:
 ```bash
-python main.py
+python auto_interface.py
 ```
 
-### Command Line Arguments
+This provides:
+- Dashboard tab for viewing signals
+- Auto-Trading tab for configuring and monitoring automated trading
+- Charts tab for viewing visualizations
+- Settings tab for configuration
+- Logs tab for monitoring activity
 
-- `--symbols`: List of stock symbols to trade (default: AAPL, MSFT, GOOGL, AMZN, META)
-- `--strategy`: Trading strategy to use (default: MA Crossover)
-- `--interval`: Data interval (default: 1d)
-- `--update-interval`: Time in seconds between updates (default: 60)
-- `--iterations`: Maximum number of iterations to run (default: None, runs indefinitely)
+### Command Line
 
-Example:
+Run the automated trader from the command line:
 ```bash
-python main.py --symbols AAPL TSLA --strategy "RSI Strategy" --interval 1h --update-interval 300 --iterations 5
+python auto_trader.py --symbols AAPL MSFT --interval 1h --period 3mo --market-regime auto
 ```
 
-## Project Structure
+Options:
+- `--symbols`: List of stock symbols to trade
+- `--interval`: Data interval (1d, 1h, 5m)
+- `--period`: Data period (1mo, 3mo, 6mo, 1y)
+- `--update-interval`: Time between updates
+- `--no-trade`: Run in signal-only mode
+- `--market-regime`: Strategy bias (trending, ranging, auto)
+- `--risk-percent`: Portfolio percentage to risk per trade
+- `--max-positions`: Maximum number of active positions
 
-- `main.py`: Main entry point
-- `data_fetcher.py`: Fetches stock data
-- `strategy.py`: Implements trading strategies
-- `visualizer.py`: Creates charts and visualizations
-- `figures/`: Directory for saved charts
-- `logs/`: Directory for log files
+## Recommendations for Best Results
 
-## Extending the Bot
+1. **Data Requirements**:
+   - Breakout and Mean Reversion strategies require at least 30 bars of data
+   - Use longer periods (3mo or 6mo) with shorter intervals (1h) for sufficient data points
+   - Initially disable complex strategies in Settings → Strategy Selection
 
-### Adding a New Strategy
+2. **Starting Settings**:
+   - Interval: 1h
+   - Period: 3mo
+   - Risk %: 0.5-2%
+   - Enabled Strategies: MA Crossover, RSI, Momentum (initially)
 
-1. Create a new strategy class in `strategy.py` that inherits from the `Strategy` base class
-2. Implement the required methods
-3. Add the strategy to the `StrategyManager` in `main.py`
+## For Detailed Information
 
-Example:
-```python
-class MyNewStrategy(Strategy):
-    def __init__(self):
-        super().__init__("My New Strategy")
-        
-    def generate_signals(self, data):
-        # Implement your strategy logic here
-        # Return DataFrame with signals
-        pass
-```
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+See `AUTO_TRADING_GUIDE.md` for comprehensive instructions on setting up automated trading.
 
 ## Disclaimer
 
