@@ -21,7 +21,15 @@ import pandas as pd
 from PIL import Image, ImageTk
 
 from data_fetcher import DataFetcher
-from strategy import MovingAverageCrossover, RSIStrategy, MomentumStrategy, StrategyManager
+from strategy import (
+    EnhancedMovingAverageCrossover, 
+    EnhancedRSIStrategy, 
+    EnhancedMomentumStrategy, 
+    BreakoutStrategy,
+    MeanReversionStrategy,
+    DualStrategySystem,
+    StrategyManager
+)
 from visualizer import Visualizer
 
 # Setup logging
@@ -105,9 +113,12 @@ class StockTradingBotGUI(tk.Tk):
     
     def setup_strategies(self):
         """Set up trading strategies."""
-        self.strategy_manager.add_strategy(MovingAverageCrossover(short_window=20, long_window=50))
-        self.strategy_manager.add_strategy(RSIStrategy(period=14, overbought=70, oversold=30))
-        self.strategy_manager.add_strategy(MomentumStrategy(period=10, threshold=0.05))
+        self.strategy_manager.add_strategy(EnhancedMovingAverageCrossover(short_window=20, long_window=50))
+        self.strategy_manager.add_strategy(EnhancedRSIStrategy(period=14, overbought=70, oversold=30))
+        self.strategy_manager.add_strategy(EnhancedMomentumStrategy(period=10, threshold=5.0))
+        self.strategy_manager.add_strategy(BreakoutStrategy())
+        self.strategy_manager.add_strategy(MeanReversionStrategy())
+        self.strategy_manager.add_strategy(DualStrategySystem())
     
     def create_widgets(self):
         """Create the interface widgets."""
@@ -205,7 +216,14 @@ class StockTradingBotGUI(tk.Tk):
         # Strategy
         ttk.Label(general_frame, text="Strategy:").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         strategy_combo = ttk.Combobox(general_frame, textvariable=self.strategy, state="readonly", width=37)
-        strategy_combo['values'] = ("MA Crossover", "RSI Strategy", "Momentum Strategy")
+        strategy_combo['values'] = (
+            "MA Crossover", 
+            "RSI Strategy", 
+            "Momentum Strategy",
+            "Breakout Strategy",
+            "Mean Reversion Strategy",
+            "Dual Strategy System"
+        )
         strategy_combo.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
         
         # Interval
