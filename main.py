@@ -2,102 +2,182 @@
 # -*- coding: utf-8 -*-
 
 """
-Main entry point for the StockTradingBot.
-Orchestrates the entire trading workflow.
+Main module for the Stock Trading Bot.
 """
 
 import os
 import time
 import logging
-from datetime import datetime
 import pandas as pd
+from datetime import datetime
+import argparse
 
-from dotenv import load_dotenv
-from config import Config
 from data_fetcher import DataFetcher
-from indicators import TechnicalIndicators
-from strategies import StrategyManager
-from risk_management import RiskManager
-from trade_executor import TradeExecutor
-from utils import setup_logger
+from strategy import MovingAverageCrossover, RSIStrategy, MomentumStrategy, StrategyManager
 from visualizer import Visualizer
 
-# Load environment variables
-load_dotenv()
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # Log to console
+    ]
+)
+logger = logging.getLogger(__name__)
 
-def main():
-    """Main function to run the trading bot."""
-    # Set up logging
-    log_file = f"trading_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-    logger = setup_logger(log_file)
-    logger.info("Starting StockTradingBot...")
+# Create logs directory if it doesn't exist
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+    logger.info("Created logs directory")
+
+# Add file handler for logging
+file_handler = logging.FileHandler(f'logs/trading_log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
+class StockTradingBot:
+    """Main class for the Stock Trading Bot."""
     
-    try:
+    def __init__(self, symbols=None, strategy_name='MA Crossover', interval='1d', update_interval=60):
+        """
+        Initialize the Stock Trading Bot.
+        
+        Args:
+            symbols (list): List of stock symbols to trade
+            strategy_name (str): Name of the strategy to use
+            interval (str): Data interval ('1d', '1h', etc.)
+            update_interval (int): Time in seconds between updates
+        """
+        self.symbols = symbols or ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META']
+        self.strategy_name = strategy_name
+        self.interval = interval
+        self.update_interval = update_interval
+        
         # Initialize components
-        config = Config()
-        data_fetcher = DataFetcher(config)
-        indicators = TechnicalIndicators()
-        strategy_manager = StrategyManager(config)
-        risk_manager = RiskManager(config)
-        trade_executor = TradeExecutor(config)
-        visualizer = Visualizer()
+        self.data_fetcher = DataFetcher()
+        self.strategy_manager = StrategyManager()
+        self.visualizer = Visualizer()
         
-        logger.info(f"Trading mode: {'Live' if config.LIVE_TRADING else 'Paper'}")
-        logger.info(f"Selected strategy: {config.STRATEGY}")
-        logger.info(f"Trading symbols: {config.SYMBOLS}")
+        # Set up strategies
+        self._setup_strategies()
         
-        # Main trading loop
-        while True:
-            # Check if market is open
-            if not data_fetcher.is_market_open() and config.LIVE_TRADING:
-                next_open = data_fetcher.get_next_market_open()
-                logger.info(f"Market is closed. Next open: {next_open}")
-                sleep_time = min((next_open - datetime.now()).total_seconds(), 3600)
-                time.sleep(max(1, sleep_time))
-                continue
-            
-            # Perform trading operations for each symbol
-            for symbol in config.SYMBOLS:
-                try:
-                    # Get market data
-                    logger.info(f"Fetching data for {symbol}")
-                    data = data_fetcher.get_market_data(symbol, config.TIMEFRAME, config.LOOKBACK_PERIOD)
-                    
-                    # Calculate technical indicators
-                    analysis_data = indicators.calculate_indicators(data, config.INDICATORS)
-                    
-                    # Generate trading signals
-                    signals = strategy_manager.generate_signals(analysis_data, symbol)
-                    
-                    # Apply risk management
-                    trade_decisions = risk_manager.evaluate_trades(signals, analysis_data, symbol)
-                    
-                    # Execute trades
-                    if trade_decisions:
-                        for decision in trade_decisions:
-                            trade_executor.execute_trade(decision)
-                            logger.info(f"Trade executed: {decision}")
-                    
-                    # Visualize current data (if in debug mode)
-                    if config.DEBUG_MODE:
-                        visualizer.plot_data_with_signals(analysis_data, signals, symbol)
+        logger.info(f"Initialized StockTradingBot with symbols: {self.symbols}")
+        logger.info(f"Using strategy: {self.strategy_name}")
+    
+    def _setup_strategies(self):
+        """Set up trading strategies."""
+        # Add strategies to manager
+        self.strategy_manager.add_strategy(MovingAverageCrossover(short_window=20, long_window=50))
+        self.strategy_manager.add_strategy(RSIStrategy(period=14, overbought=70, oversold=30))
+        self.strategy_manager.add_strategy(MomentumStrategy(period=10, threshold=0.05))
+        
+        logger.info("Set up trading strategies")
+    
+    def run(self, max_iterations=None):
+        """
+        Run the trading bot.
+        
+        Args:
+            max_iterations (int, optional): Maximum number of iterations to run
+        """
+        logger.info("Starting StockTradingBot...")
+        
+        iteration = 0
+        
+        try:
+            while max_iterations is None or iteration < max_iterations:
+                logger.info(f"Iteration {iteration+1}")
+                
+                # Process each symbol
+                for symbol in self.symbols:
+                    try:
+                        # Fetch stock data
+                        logger.info(f"Fetching data for {symbol}")
+                        stock_data = self.data_fetcher.get_stock_data(symbol, period='1mo', interval=self.interval)
                         
-                except Exception as e:
-                    logger.error(f"Error processing {symbol}: {str(e)}")
+                        if stock_data.empty:
+                            logger.warning(f"No data retrieved for {symbol}")
+                            continue
+                            
+                        # Generate signals
+                        logger.info(f"Generating signals for {symbol}")
+                        signals = self.strategy_manager.generate_signals(stock_data, self.strategy_name)
+                        
+                        if not signals:
+                            logger.warning(f"No signals generated for {symbol}")
+                            continue
+                            
+                        # Get the signals DataFrame for the selected strategy
+                        signal_data = signals.get(self.strategy_name)
+                        
+                        if signal_data is None:
+                            logger.warning(f"Strategy '{self.strategy_name}' not found")
+                            continue
+                        
+                        # Get the last signal
+                        last_signal = signal_data['signal'].iloc[-1]
+                        last_close = signal_data['close'].iloc[-1]
+                        
+                        # Log the signal
+                        signal_text = "BUY" if last_signal == 1 else "SELL" if last_signal == -1 else "HOLD"
+                        logger.info(f"{symbol} signal: {signal_text} at ${last_close:.2f}")
+                        
+                        # Visualize the data
+                        if 'rsi' in signal_data.columns:
+                            self.visualizer.plot_rsi(signal_data, symbol)
+                        else:
+                            self.visualizer.plot_signals(signal_data, symbol)
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing {symbol}: {str(e)}")
+                
+                # Clean up old figures to avoid filling up the disk
+                self.visualizer.clean_old_figures(max_figures=30)
+                
+                # Increment iteration counter
+                iteration += 1
+                
+                # Wait for the next update
+                if max_iterations is None or iteration < max_iterations:
+                    logger.info(f"Waiting {self.update_interval} seconds for next update")
+                    time.sleep(self.update_interval)
             
-            # Wait for the next iteration
-            logger.info(f"Waiting for {config.POLLING_INTERVAL} seconds before next update")
-            time.sleep(config.POLLING_INTERVAL)
+            logger.info("Trading bot completed all iterations")
             
-    except KeyboardInterrupt:
-        logger.info("Trading bot stopped by user")
-    except Exception as e:
-        logger.critical(f"Critical error: {str(e)}")
-    finally:
-        # Clean up and save performance metrics
-        logger.info("Shutting down trading bot")
-        if config.SAVE_PERFORMANCE and hasattr(trade_executor, 'performance'):
-            trade_executor.performance.save_to_csv('performance_metrics.csv')
+        except KeyboardInterrupt:
+            logger.info("Trading bot stopped by user")
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+        finally:
+            logger.info("Trading bot shutting down")
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Stock Trading Bot")
+    parser.add_argument("--symbols", nargs='+', default=['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META'],
+                      help="List of stock symbols to trade")
+    parser.add_argument("--strategy", default="MA Crossover", choices=["MA Crossover", "RSI Strategy", "Momentum Strategy"],
+                      help="Trading strategy to use")
+    parser.add_argument("--interval", default="1d", choices=["1d", "1h", "5m"],
+                      help="Data interval")
+    parser.add_argument("--update-interval", type=int, default=60,
+                      help="Time in seconds between updates")
+    parser.add_argument("--iterations", type=int, default=None,
+                      help="Maximum number of iterations to run")
+    
+    return parser.parse_args()
 
 if __name__ == "__main__":
-    main() 
+    # Parse command line arguments
+    args = parse_arguments()
+    
+    # Create and run the trading bot
+    bot = StockTradingBot(
+        symbols=args.symbols,
+        strategy_name=args.strategy,
+        interval=args.interval,
+        update_interval=args.update_interval
+    )
+    
+    bot.run(max_iterations=args.iterations) 

@@ -2,531 +2,324 @@
 # -*- coding: utf-8 -*-
 
 """
-Visualizer module for the StockTradingBot.
-Handles visualization of market data, indicators, and performance metrics.
+Simple visualizer module for stock trading charts and performance metrics.
 """
 
 import os
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.ticker import MaxNLocator
-import seaborn as sns
-from typing import Dict, List, Optional, Union, Tuple
+from datetime import datetime
 import logging
-from datetime import datetime, timedelta
 
+# Setup basic logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 class Visualizer:
-    """Class for visualizing trading data and performance metrics."""
+    """Simple class for creating and saving stock charts."""
     
-    def __init__(self):
-        """Initialize the Visualizer."""
+    def __init__(self, figure_dir='figures'):
+        """
+        Initialize the Visualizer.
+        
+        Args:
+            figure_dir (str): Directory to save figures
+        """
+        self.figure_dir = figure_dir
+        
         # Create figures directory if it doesn't exist
-        if not os.path.exists('figures'):
-            os.makedirs('figures')
+        if not os.path.exists(figure_dir):
+            os.makedirs(figure_dir)
+            logger.info(f"Created directory: {figure_dir}")
         
-        # Set the default style
-        plt.style.use('seaborn-v0_8-darkgrid')
-        
-        # Increase default figure size
-        plt.rcParams['figure.figsize'] = (12, 8)
-        
-        # Use a higher DPI for better resolution
-        plt.rcParams['figure.dpi'] = 100
-        
-        # Use a modern font
-        plt.rcParams['font.family'] = 'sans-serif'
-        plt.rcParams['font.sans-serif'] = ['Arial', 'DejaVu Sans', 'Liberation Sans', 'Bitstream Vera Sans', 'sans-serif']
+        # Configure matplotlib style
+        plt.style.use('ggplot')
+        plt.rcParams['figure.figsize'] = (10, 6)
     
-    def plot_data_with_signals(self, data: pd.DataFrame, signals: Dict, symbol: str) -> None:
+    def plot_stock_data(self, data, symbol, save=True, filename=None):
         """
-        Plot price data with trading signals - Simplified version.
+        Plot basic stock price data with volume.
         
         Args:
-            data: DataFrame with price data and indicators.
-            signals: Dictionary with trading signals.
-            symbol: The ticker symbol.
+            data (pd.DataFrame): DataFrame with OHLCV data
+            symbol (str): Stock symbol
+            save (bool): Whether to save the figure
+            filename (str, optional): Filename to save the figure
+            
+        Returns:
+            tuple: Figure and axes objects
         """
         if data.empty:
             logger.warning("Cannot plot empty data")
-            return
+            return None, None
         
-        # Create a figure with 2 subplots instead of 3 to simplify
-        fig, axes = plt.subplots(2, 1, figsize=(10, 10), gridspec_kw={'height_ratios': [3, 1]})
-        
-        # Main price chart
-        ax_price = axes[0]
+        # Create a figure with two subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
         
         # Plot price data
-        ax_price.plot(data.index, data['close'], label='Close Price', color='black', linewidth=1.5)
+        ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
         
-        # Add moving averages
-        if 'sma_20' in data.columns:
-            ax_price.plot(data.index, data['sma_20'], label='SMA 20', color='blue', alpha=0.7)
-        if 'sma_50' in data.columns:
-            ax_price.plot(data.index, data['sma_50'], label='SMA 50', color='orange', alpha=0.7)
+        # Add moving averages if available
+        for col in data.columns:
+            if col.startswith('sma_') or col.startswith('ema_'):
+                ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
         
-        # Highlight the trading signal
-        last_idx = data.index[-1]
-        last_price = data['close'].iloc[-1]
-        signal = signals.get('signal', 'neutral')
-        direction = signals.get('direction', 'neutral')
+        # Plot volume
+        ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
         
-        if signal == 'buy' and direction == 'long':
-            ax_price.scatter(last_idx, last_price, color='green', s=100, marker='^', zorder=5)
-            ax_price.annotate('BUY', (last_idx, last_price), xytext=(10, 10), 
-                            textcoords='offset points', color='green', fontweight='bold')
-        elif signal == 'sell' and direction == 'short':
-            ax_price.scatter(last_idx, last_price, color='red', s=100, marker='v', zorder=5)
-            ax_price.annotate('SELL', (last_idx, last_price), xytext=(10, 10), 
-                            textcoords='offset points', color='red', fontweight='bold')
+        # Format axes
+        ax1.set_title(f'{symbol} Stock Price', fontsize=14)
+        ax1.set_ylabel('Price ($)', fontsize=12)
+        ax1.grid(True, alpha=0.3)
+        ax1.legend(loc='best')
         
-        # Format price axis
-        ax_price.set_title(f'{symbol} Price Chart with Signals', fontsize=16)
-        ax_price.set_ylabel('Price ($)', fontsize=12)
-        ax_price.grid(True, alpha=0.3)
-        ax_price.legend(loc='upper left')
+        ax2.set_xlabel('Date', fontsize=12)
+        ax2.set_ylabel('Volume', fontsize=12)
+        ax2.grid(True, alpha=0.3)
         
-        # Volume plot
-        ax_vol = axes[1]
-        volume_data = data['volume']
-        
-        # Plot volume as bar chart
-        ax_vol.bar(data.index, volume_data, color='blue', alpha=0.5)
-        ax_vol.set_ylabel('Volume', fontsize=12)
-        ax_vol.grid(True, alpha=0.3)
-        
-        # Format x-axis for all subplots
-        for ax in axes:
-            if ax.get_visible():
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-                ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
-                plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        # Add a common xlabel
-        fig.text(0.5, 0.02, 'Date', ha='center', fontsize=12)
-        
-        # Adjust layout
         plt.tight_layout()
-        plt.subplots_adjust(bottom=0.12)
         
-        # Add signal information text box
-        signal_text = f"Signal: {signal.upper()}\nDirection: {direction}\nStrength: {signals.get('strength', 0):.2f}"
-        if 'reason' in signals:
-            signal_text += f"\nReason: {signals['reason']}"
+        # Save figure if requested
+        if save:
+            if filename is None:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{symbol}_price_{timestamp}.png"
+            
+            filepath = os.path.join(self.figure_dir, filename)
+            plt.savefig(filepath, dpi=100)
+            logger.info(f"Saved figure to {filepath}")
         
-        # Position the text box in the first subplot
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        ax_price.text(0.02, 0.02, signal_text, transform=ax_price.transAxes, fontsize=11,
-                    verticalalignment='bottom', bbox=props)
-        
-        # Save figure with a more concise naming format
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-        filename = f"figures/{symbol}_signal_{timestamp}.png"
-        plt.savefig(filename, dpi=80, bbox_inches='tight')
-        logger.info(f"Saved signal chart to {filename}")
-        
-        # Close the figure to free memory
-        plt.close(fig)
+        return fig, (ax1, ax2)
     
-    def plot_simplified_chart(self, data: pd.DataFrame, symbol: str, filename: str = None) -> None:
+    def plot_signals(self, data, symbol, save=True, filename=None):
         """
-        Plot a simplified price chart without technical indicators.
+        Plot stock data with trading signals.
         
         Args:
-            data: DataFrame with price data.
-            symbol: The ticker symbol.
-            filename: Optional filename to save the chart.
+            data (pd.DataFrame): DataFrame with OHLCV data and signals
+            symbol (str): Stock symbol
+            save (bool): Whether to save the figure
+            filename (str, optional): Filename to save the figure
+            
+        Returns:
+            tuple: Figure and axes objects
         """
         if data.empty:
             logger.warning("Cannot plot empty data")
-            return
+            return None, None
         
-        # Create a simple figure
-        fig, ax = plt.subplots(figsize=(10, 6))
+        if 'signal' not in data.columns:
+            logger.warning("No signal column in data")
+            return self.plot_stock_data(data, symbol, save, filename)
         
-        # Plot price data
-        ax.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
-        
-        # Format axis
-        ax.set_title(f'{symbol} Price Chart', fontsize=16)
-        ax.set_ylabel('Price ($)', fontsize=12)
-        ax.set_xlabel('Date', fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        
-        # Adjust layout
-        plt.tight_layout()
-        
-        # Save figure
-        if filename is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-            filename = f"figures/{symbol}_price_{timestamp}.png"
-        
-        plt.savefig(filename, dpi=80, bbox_inches='tight')
-        logger.info(f"Saved price chart to {filename}")
-        
-        # Close the figure to free memory
-        plt.close(fig)
-    
-    def plot_performance_dashboard(self, equity_curve: List[Dict], trades: List[Dict], 
-                                metrics: Dict, filename: str = None) -> None:
-        """
-        Create a comprehensive performance dashboard.
-        
-        Args:
-            equity_curve: List of portfolio value dictionaries.
-            trades: List of trade dictionaries.
-            metrics: Dictionary of performance metrics.
-            filename: Name of the file to save the dashboard.
-        """
-        # Convert to DataFrames
-        if not equity_curve or not trades:
-            logger.warning("Cannot plot performance dashboard with empty data")
-            return
-        
-        # Create a 4-panel dashboard
-        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-        
-        # Equity curve (top-left)
-        ax_equity = axes[0, 0]
-        
-        # Convert to DataFrame
-        equity_df = pd.DataFrame(equity_curve)
-        equity_df['timestamp'] = pd.to_datetime(equity_df['timestamp'])
-        equity_df.set_index('timestamp', inplace=True)
-        
-        # Plot equity curve
-        ax_equity.plot(equity_df.index, equity_df['value'], color='blue', linewidth=2)
-        ax_equity.set_title('Portfolio Equity Curve', fontsize=14)
-        ax_equity.set_ylabel('Portfolio Value ($)', fontsize=12)
-        ax_equity.grid(True, alpha=0.3)
-        ax_equity.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        
-        # Add metrics text box
-        metrics_text = (
-            f"Total Return: {metrics.get('return_pct', 0):.2f}%\n"
-            f"Sharpe Ratio: {metrics.get('sharpe_ratio', 0):.2f}\n"
-            f"Max Drawdown: {metrics.get('max_drawdown', 0):.2f}%\n"
-            f"Win Rate: {metrics.get('win_rate', 0):.2f}%\n"
-            f"Profit Factor: {metrics.get('profit_factor', 0):.2f}"
-        )
-        props = dict(boxstyle='round', facecolor='lightblue', alpha=0.5)
-        ax_equity.text(0.02, 0.02, metrics_text, transform=ax_equity.transAxes, fontsize=12,
-                    verticalalignment='bottom', bbox=props)
-        
-        # Trade P&L distribution (top-right)
-        ax_pnl = axes[0, 1]
-        
-        # Extract P&L from trades
-        pnl_values = [trade.get('pnl', 0) for trade in trades if 'pnl' in trade]
-        
-        if pnl_values:
-            # Plot P&L distribution
-            sns.histplot(pnl_values, bins=20, kde=True, ax=ax_pnl, color='skyblue')
-            ax_pnl.axvline(x=0, color='red', linestyle='--', alpha=0.8)
-            ax_pnl.set_title('Trade P&L Distribution', fontsize=14)
-            ax_pnl.set_xlabel('P&L ($)', fontsize=12)
-            ax_pnl.set_ylabel('Frequency', fontsize=12)
-            ax_pnl.grid(True, alpha=0.3)
-        else:
-            ax_pnl.text(0.5, 0.5, "No P&L data available", horizontalalignment='center',
-                      verticalalignment='center', transform=ax_pnl.transAxes, fontsize=14)
-        
-        # Monthly returns (bottom-left)
-        ax_monthly = axes[1, 0]
-        
-        if not equity_df.empty and len(equity_df) > 1:
-            # Calculate monthly returns
-            equity_df['monthly_return'] = equity_df['value'].pct_change(periods=30) * 100
-            
-            # Group by month and calculate average return
-            monthly_returns = equity_df.resample('M')['monthly_return'].last()
-            
-            # Plot monthly returns
-            colors = ['green' if r >= 0 else 'red' for r in monthly_returns]
-            ax_monthly.bar(monthly_returns.index, monthly_returns, color=colors, alpha=0.7)
-            ax_monthly.axhline(y=0, color='black', linestyle='-', alpha=0.3)
-            ax_monthly.set_title('Monthly Returns', fontsize=14)
-            ax_monthly.set_ylabel('Return (%)', fontsize=12)
-            ax_monthly.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-            ax_monthly.grid(True, alpha=0.3)
-            plt.setp(ax_monthly.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        else:
-            ax_monthly.text(0.5, 0.5, "Insufficient data for monthly returns", horizontalalignment='center',
-                          verticalalignment='center', transform=ax_monthly.transAxes, fontsize=14)
-        
-        # Drawdown chart (bottom-right)
-        ax_drawdown = axes[1, 1]
-        
-        if not equity_df.empty and len(equity_df) > 1:
-            # Calculate drawdown
-            peak = equity_df['value'].cummax()
-            drawdown = ((equity_df['value'] - peak) / peak) * 100
-            
-            # Plot drawdown
-            ax_drawdown.fill_between(drawdown.index, 0, drawdown, color='red', alpha=0.3)
-            ax_drawdown.plot(drawdown.index, drawdown, color='red', linewidth=1)
-            ax_drawdown.set_title('Portfolio Drawdown', fontsize=14)
-            ax_drawdown.set_ylabel('Drawdown (%)', fontsize=12)
-            ax_drawdown.grid(True, alpha=0.3)
-            ax_drawdown.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-            plt.setp(ax_drawdown.xaxis.get_majorticklabels(), rotation=45, ha='right')
-            
-            # Invert y-axis for better visualization (drawdown is negative)
-            ax_drawdown.invert_yaxis()
-        else:
-            ax_drawdown.text(0.5, 0.5, "Insufficient data for drawdown calculation", horizontalalignment='center',
-                           verticalalignment='center', transform=ax_drawdown.transAxes, fontsize=14)
-        
-        # Add a title for the whole dashboard
-        fig.suptitle('Trading Performance Dashboard', fontsize=16, y=0.98)
-        
-        # Adjust layout
-        plt.tight_layout(rect=[0, 0, 1, 0.97])
-        
-        # Save figure if filename provided
-        if filename:
-            plt.savefig(f"figures/{filename}", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved performance dashboard to figures/{filename}")
-        else:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            plt.savefig(f"figures/performance_dashboard_{timestamp}.png", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved performance dashboard to figures/performance_dashboard_{timestamp}.png")
-        
-        # Close the figure to free memory
-        plt.close(fig)
-    
-    def plot_correlation_matrix(self, symbols: List[str], data_dict: Dict[str, pd.DataFrame], 
-                               period: int = 30, filename: str = None) -> None:
-        """
-        Plot a correlation matrix of multiple symbols.
-        
-        Args:
-            symbols: List of symbols to include.
-            data_dict: Dictionary mapping symbols to their price DataFrames.
-            period: Number of days to use for correlation calculation.
-            filename: Name of the file to save the correlation matrix.
-        """
-        # Check if we have data for all symbols
-        if not all(symbol in data_dict for symbol in symbols):
-            logger.warning("Not all symbols have data for correlation matrix")
-            return
-        
-        # Extract closing prices for each symbol
-        prices = pd.DataFrame()
-        
-        for symbol in symbols:
-            if symbol in data_dict and 'close' in data_dict[symbol].columns:
-                prices[symbol] = data_dict[symbol]['close'].values[-period:]
-        
-        # Check if we have enough data
-        if prices.empty or prices.shape[1] < 2:
-            logger.warning("Insufficient data for correlation matrix")
-            return
-        
-        # Calculate correlation matrix
-        corr_matrix = prices.corr()
-        
-        # Create heatmap
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1, linewidths=0.5)
-        plt.title(f'Correlation Matrix ({period}-day)', fontsize=16)
-        
-        # Save figure if filename provided
-        if filename:
-            plt.savefig(f"figures/{filename}", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved correlation matrix to figures/{filename}")
-        else:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            plt.savefig(f"figures/correlation_matrix_{timestamp}.png", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved correlation matrix to figures/correlation_matrix_{timestamp}.png")
-        
-        # Close the figure to free memory
-        plt.close()
-    
-    def plot_trading_activity(self, trades: List[Dict], price_data: pd.DataFrame, symbol: str, 
-                             filename: str = None) -> None:
-        """
-        Plot trading activity overlaid on price chart.
-        
-        Args:
-            trades: List of trade dictionaries.
-            price_data: DataFrame with price data.
-            symbol: The ticker symbol.
-            filename: Name of the file to save the chart.
-        """
-        if price_data.empty or not trades:
-            logger.warning("Cannot plot trading activity with empty data")
-            return
-        
-        # Filter trades for the given symbol
-        symbol_trades = [trade for trade in trades if trade.get('symbol') == symbol]
-        
-        if not symbol_trades:
-            logger.warning(f"No trades found for symbol {symbol}")
-            return
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(15, 8))
+        # Create figure and axes
+        fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
         
         # Plot price data
-        ax.plot(price_data.index, price_data['close'], color='black', linewidth=1.5)
+        ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
         
-        # Add entry and exit markers
-        for trade in symbol_trades:
-            # Extract trade data
-            action = trade.get('action', '')
-            timestamp = pd.to_datetime(trade.get('timestamp', ''))
-            price = trade.get('price', 0)
-            quantity = trade.get('quantity', 0)
-            pnl = trade.get('pnl', 0)
-            
-            # Find nearest timestamp in price data
-            if timestamp not in price_data.index:
-                # Find closest date
-                closest_idx = abs(price_data.index - timestamp).argmin()
-                timestamp = price_data.index[closest_idx]
-            
-            # Add markers based on action
-            if action == 'buy':
-                ax.scatter(timestamp, price, color='green', s=100, marker='^', zorder=5)
-                ax.annotate(f"BUY\n{quantity} @ ${price:.2f}", 
-                          (timestamp, price), xytext=(5, 5), textcoords='offset points',
-                          fontsize=9, fontweight='bold', color='green')
-            elif action == 'sell':
-                ax.scatter(timestamp, price, color='red', s=100, marker='v', zorder=5)
-                label = f"SELL\n{quantity} @ ${price:.2f}"
-                if pnl != 0:
-                    label += f"\nP&L: ${pnl:.2f}"
-                ax.annotate(label, (timestamp, price), xytext=(5, 5), textcoords='offset points',
-                          fontsize=9, fontweight='bold', color='red')
-            elif action == 'sell_short':
-                ax.scatter(timestamp, price, color='purple', s=100, marker='v', zorder=5)
-                ax.annotate(f"SHORT\n{quantity} @ ${price:.2f}", 
-                          (timestamp, price), xytext=(5, 5), textcoords='offset points',
-                          fontsize=9, fontweight='bold', color='purple')
-            elif action == 'buy_to_cover':
-                ax.scatter(timestamp, price, color='blue', s=100, marker='^', zorder=5)
-                label = f"COVER\n{quantity} @ ${price:.2f}"
-                if pnl != 0:
-                    label += f"\nP&L: ${pnl:.2f}"
-                ax.annotate(label, (timestamp, price), xytext=(5, 5), textcoords='offset points',
-                          fontsize=9, fontweight='bold', color='blue')
+        # Add moving averages if available
+        for col in data.columns:
+            if col.startswith('sma_') or col.startswith('ema_'):
+                ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
         
-        # Add indicators if available
-        if 'sma_20' in price_data.columns:
-            ax.plot(price_data.index, price_data['sma_20'], color='blue', alpha=0.7, linewidth=1, label='SMA 20')
-        if 'sma_50' in price_data.columns:
-            ax.plot(price_data.index, price_data['sma_50'], color='orange', alpha=0.7, linewidth=1, label='SMA 50')
+        # Plot buy signals
+        buy_signals = data[data['signal'] == 1]
+        if not buy_signals.empty:
+            ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
         
-        # Format chart
-        ax.set_title(f'Trading Activity for {symbol}', fontsize=16)
-        ax.set_xlabel('Date', fontsize=12)
-        ax.set_ylabel('Price ($)', fontsize=12)
-        ax.grid(True, alpha=0.3)
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
-        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
-        ax.legend(loc='upper left')
+        # Plot sell signals
+        sell_signals = data[data['signal'] == -1]
+        if not sell_signals.empty:
+            ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
         
-        # Add trading summary text box
-        total_trades = len(symbol_trades)
-        total_pnl = sum(trade.get('pnl', 0) for trade in symbol_trades if 'pnl' in trade)
-        win_trades = sum(1 for trade in symbol_trades if trade.get('pnl', 0) > 0)
-        lose_trades = sum(1 for trade in symbol_trades if trade.get('pnl', 0) < 0)
-        win_rate = (win_trades / total_trades) * 100 if total_trades > 0 else 0
+        # Plot volume
+        ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
         
-        summary_text = (
-            f"Total Trades: {total_trades}\n"
-            f"Win Rate: {win_rate:.2f}%\n"
-            f"Total P&L: ${total_pnl:.2f}"
-        )
+        # Format axes
+        ax1.set_title(f'{symbol} Trading Signals', fontsize=14)
+        ax1.set_ylabel('Price ($)', fontsize=12)
+        ax1.grid(True, alpha=0.3)
+        ax1.legend(loc='best')
         
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        ax.text(0.02, 0.98, summary_text, transform=ax.transAxes, fontsize=12,
-              verticalalignment='top', bbox=props)
+        ax2.set_xlabel('Date', fontsize=12)
+        ax2.set_ylabel('Volume', fontsize=12)
+        ax2.grid(True, alpha=0.3)
         
-        # Adjust layout
         plt.tight_layout()
         
-        # Save figure if filename provided
-        if filename:
-            plt.savefig(f"figures/{filename}", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved trading activity chart to figures/{filename}")
-        else:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            plt.savefig(f"figures/{symbol}_trading_activity_{timestamp}.png", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved trading activity chart to figures/{symbol}_trading_activity_{timestamp}.png")
+        # Save figure if requested
+        if save:
+            if filename is None:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{symbol}_signals_{timestamp}.png"
+            
+            filepath = os.path.join(self.figure_dir, filename)
+            plt.savefig(filepath, dpi=100)
+            logger.info(f"Saved signals chart to {filepath}")
         
-        # Close the figure to free memory
-        plt.close(fig)
+        return fig, (ax1, ax2)
     
-    def plot_strategy_comparison(self, strategy_results: Dict[str, Dict], filename: str = None) -> None:
+    def plot_rsi(self, data, symbol, save=True, filename=None):
         """
-        Plot a comparison of different strategies.
+        Plot stock data with RSI indicator.
         
         Args:
-            strategy_results: Dictionary mapping strategy names to performance metrics.
-            filename: Name of the file to save the chart.
+            data (pd.DataFrame): DataFrame with OHLCV data and RSI
+            symbol (str): Stock symbol
+            save (bool): Whether to save the figure
+            filename (str, optional): Filename to save the figure
+            
+        Returns:
+            tuple: Figure and axes objects
         """
-        if not strategy_results:
-            logger.warning("Cannot plot strategy comparison with empty data")
+        if data.empty:
+            logger.warning("Cannot plot empty data")
+            return None, None
+        
+        if 'rsi' not in data.columns:
+            logger.warning("No RSI column in data")
+            return self.plot_stock_data(data, symbol, save, filename)
+        
+        # Create figure with 3 subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, sharex=True)
+        
+        # Plot price data
+        ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
+        
+        # Add moving averages if available
+        for col in data.columns:
+            if col.startswith('sma_') or col.startswith('ema_'):
+                ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
+        
+        # Plot buy signals if available
+        if 'signal' in data.columns:
+            buy_signals = data[data['signal'] == 1]
+            if not buy_signals.empty:
+                ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
+            
+            # Plot sell signals
+            sell_signals = data[data['signal'] == -1]
+            if not sell_signals.empty:
+                ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
+        
+        # Plot volume
+        ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
+        
+        # Plot RSI
+        ax3.plot(data.index, data['rsi'], label='RSI', color='purple', linewidth=1.5)
+        ax3.axhline(y=70, color='red', linestyle='--', alpha=0.5)
+        ax3.axhline(y=30, color='green', linestyle='--', alpha=0.5)
+        ax3.text(data.index[0], 70, 'Overbought', color='red', fontsize=10)
+        ax3.text(data.index[0], 30, 'Oversold', color='green', fontsize=10)
+        ax3.set_ylim(0, 100)
+        
+        # Format axes
+        ax1.set_title(f'{symbol} with RSI', fontsize=14)
+        ax1.set_ylabel('Price ($)', fontsize=12)
+        ax1.grid(True, alpha=0.3)
+        ax1.legend(loc='best')
+        
+        ax2.set_ylabel('Volume', fontsize=12)
+        ax2.grid(True, alpha=0.3)
+        
+        ax3.set_xlabel('Date', fontsize=12)
+        ax3.set_ylabel('RSI', fontsize=12)
+        ax3.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Save figure if requested
+        if save:
+            if filename is None:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{symbol}_rsi_{timestamp}.png"
+            
+            filepath = os.path.join(self.figure_dir, filename)
+            plt.savefig(filepath, dpi=100)
+            logger.info(f"Saved RSI chart to {filepath}")
+        
+        return fig, (ax1, ax2, ax3)
+    
+    def clean_old_figures(self, max_figures=20):
+        """
+        Clean old figures, keeping only the most recent ones.
+        
+        Args:
+            max_figures (int): Maximum number of figures to keep
+        """
+        if not os.path.exists(self.figure_dir):
+            logger.warning(f"Figure directory {self.figure_dir} does not exist")
             return
-        
-        # Extract metrics for comparison
-        strategies = list(strategy_results.keys())
-        metrics = ['total_return', 'sharpe_ratio', 'max_drawdown', 'win_rate']
-        
-        # Create a DataFrame for plotting
-        comparison_data = pd.DataFrame(index=strategies, columns=metrics)
-        
-        for strategy, results in strategy_results.items():
-            for metric in metrics:
-                comparison_data.loc[strategy, metric] = results.get(metric, 0)
-        
-        # Create figure with subplots
-        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-        axes = axes.flatten()
-        
-        # Plot each metric
-        for i, metric in enumerate(metrics):
-            ax = axes[i]
-            colors = ['green' if m >= 0 else 'red' for m in comparison_data[metric]]
             
-            # Special case for max_drawdown (lower is better)
-            if metric == 'max_drawdown':
-                colors = ['green' if m <= 0 else 'red' for m in -comparison_data[metric]]
-                comparison_data[metric] = -comparison_data[metric]  # Invert for visualization
-            
-            # Plot the metric
-            ax.bar(comparison_data.index, comparison_data[metric], color=colors, alpha=0.7)
-            
-            # Format axes
-            ax.set_title(f'Strategy Comparison: {metric.replace("_", " ").title()}', fontsize=14)
-            ax.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
-            ax.grid(True, alpha=0.3)
-            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+        files = [os.path.join(self.figure_dir, f) for f in os.listdir(self.figure_dir) if f.endswith('.png')]
+        files.sort(key=os.path.getmtime, reverse=True)  # Sort by modification time, newest first
         
-        # Add a title for the whole figure
-        fig.suptitle('Strategy Performance Comparison', fontsize=16, y=0.98)
-        
-        # Adjust layout
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
-        
-        # Save figure if filename provided
-        if filename:
-            plt.savefig(f"figures/{filename}", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved strategy comparison chart to figures/{filename}")
-        else:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            plt.savefig(f"figures/strategy_comparison_{timestamp}.png", dpi=100, bbox_inches='tight')
-            logger.info(f"Saved strategy comparison chart to figures/strategy_comparison_{timestamp}.png")
-        
-        # Close the figure to free memory
-        plt.close(fig) 
+        # Delete old files if we have more than max_figures
+        if len(files) > max_figures:
+            for file_to_delete in files[max_figures:]:
+                try:
+                    os.remove(file_to_delete)
+                    logger.info(f"Deleted old figure: {file_to_delete}")
+                except Exception as e:
+                    logger.error(f"Error deleting {file_to_delete}: {str(e)}")
+
+# Simple test function
+if __name__ == "__main__":
+    # Generate sample data
+    import numpy as np
+    dates = pd.date_range(start='2023-01-01', periods=100, freq='D')
+    
+    # Generate synthetic price data
+    np.random.seed(42)  # For reproducibility
+    close_prices = [100]
+    for _ in range(99):
+        close_prices.append(close_prices[-1] * (1 + np.random.normal(0, 0.01)))
+    
+    # Create DataFrame
+    data = pd.DataFrame({
+        'close': close_prices,
+        'open': [price * 0.99 for price in close_prices],
+        'high': [price * 1.01 for price in close_prices],
+        'low': [price * 0.98 for price in close_prices],
+        'volume': np.random.randint(1000, 10000, size=100)
+    }, index=dates)
+    
+    # Calculate SMA
+    data['sma_20'] = data['close'].rolling(window=20, min_periods=1).mean()
+    data['sma_50'] = data['close'].rolling(window=50, min_periods=1).mean()
+    
+    # Create synthetic signals
+    data['signal'] = 0
+    # Every 10 days, alternate between buy and sell signals
+    data.iloc[10::20, data.columns.get_loc('signal')] = 1  # Buy
+    data.iloc[20::20, data.columns.get_loc('signal')] = -1  # Sell
+    
+    # Calculate RSI
+    delta = data['close'].diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(window=14).mean()
+    avg_loss = loss.rolling(window=14).mean()
+    rs = avg_gain / avg_loss
+    data['rsi'] = 100 - (100 / (1 + rs))
+    
+    # Test visualizer
+    visualizer = Visualizer()
+    
+    # Plot basic stock data
+    visualizer.plot_stock_data(data, 'EXAMPLE')
+    
+    # Plot with signals
+    visualizer.plot_signals(data, 'EXAMPLE')
+    
+    # Plot with RSI
+    visualizer.plot_rsi(data, 'EXAMPLE')
+    
+    # Clean old figures
+    visualizer.clean_old_figures(2)  # Keep only the 2 most recent figures
+    
+    print("Test visualizations created. Check the 'figures' directory.") 
