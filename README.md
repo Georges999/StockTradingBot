@@ -22,6 +22,7 @@ cd StockTradingBot
 2. Install the required dependencies:
 ```
 pip install -r requirements.txt
+NOTE: Might also need to install seaborn use : pip install seaborn
 ```
 
 3. Set up your environment variables in a `.env` file:

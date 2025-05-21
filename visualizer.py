@@ -43,7 +43,7 @@ class Visualizer:
     
     def plot_data_with_signals(self, data: pd.DataFrame, signals: Dict, symbol: str) -> None:
         """
-        Plot price data with trading signals.
+        Plot price data with trading signals - Simplified version.
         
         Args:
             data: DataFrame with price data and indicators.
@@ -54,8 +54,8 @@ class Visualizer:
             logger.warning("Cannot plot empty data")
             return
         
-        # Create a figure with subplots
-        fig, axes = plt.subplots(3, 1, figsize=(12, 15), gridspec_kw={'height_ratios': [3, 1, 1]})
+        # Create a figure with 2 subplots instead of 3 to simplify
+        fig, axes = plt.subplots(2, 1, figsize=(10, 10), gridspec_kw={'height_ratios': [3, 1]})
         
         # Main price chart
         ax_price = axes[0]
@@ -63,19 +63,11 @@ class Visualizer:
         # Plot price data
         ax_price.plot(data.index, data['close'], label='Close Price', color='black', linewidth=1.5)
         
-        # Add moving averages if available
+        # Add moving averages
         if 'sma_20' in data.columns:
             ax_price.plot(data.index, data['sma_20'], label='SMA 20', color='blue', alpha=0.7)
         if 'sma_50' in data.columns:
             ax_price.plot(data.index, data['sma_50'], label='SMA 50', color='orange', alpha=0.7)
-        if 'sma_200' in data.columns:
-            ax_price.plot(data.index, data['sma_200'], label='SMA 200', color='red', alpha=0.7)
-        
-        # Add Bollinger Bands if available
-        if 'bb_upper' in data.columns and 'bb_lower' in data.columns:
-            ax_price.plot(data.index, data['bb_upper'], color='gray', linestyle='--', alpha=0.5)
-            ax_price.plot(data.index, data['bb_lower'], color='gray', linestyle='--', alpha=0.5)
-            ax_price.fill_between(data.index, data['bb_upper'], data['bb_lower'], color='gray', alpha=0.1)
         
         # Highlight the trading signal
         last_idx = data.index[-1]
@@ -98,37 +90,14 @@ class Visualizer:
         ax_price.grid(True, alpha=0.3)
         ax_price.legend(loc='upper left')
         
-        # RSI plot
-        ax_rsi = axes[1]
-        if 'rsi' in data.columns:
-            ax_rsi.plot(data.index, data['rsi'], color='purple', linewidth=1.2)
-            ax_rsi.axhline(y=70, color='red', linestyle='--', alpha=0.5)
-            ax_rsi.axhline(y=30, color='green', linestyle='--', alpha=0.5)
-            ax_rsi.fill_between(data.index, data['rsi'], 70, where=(data['rsi'] >= 70), color='red', alpha=0.2)
-            ax_rsi.fill_between(data.index, data['rsi'], 30, where=(data['rsi'] <= 30), color='green', alpha=0.2)
-            ax_rsi.set_ylim(0, 100)
-            ax_rsi.set_ylabel('RSI', fontsize=12)
-            ax_rsi.grid(True, alpha=0.3)
-        else:
-            ax_rsi.set_visible(False)
+        # Volume plot
+        ax_vol = axes[1]
+        volume_data = data['volume']
         
-        # MACD plot
-        ax_macd = axes[2]
-        if 'macd_line' in data.columns and 'macd_signal' in data.columns and 'macd_histogram' in data.columns:
-            ax_macd.plot(data.index, data['macd_line'], color='blue', linewidth=1.2, label='MACD')
-            ax_macd.plot(data.index, data['macd_signal'], color='red', linewidth=1.2, label='Signal')
-            
-            # Plot histogram as bar chart
-            for i, (idx, value) in enumerate(zip(data.index, data['macd_histogram'])):
-                color = 'green' if value > 0 else 'red'
-                ax_macd.bar(idx, value, color=color, alpha=0.5, width=0.7)
-            
-            ax_macd.axhline(y=0, color='black', linestyle='-', alpha=0.3)
-            ax_macd.set_ylabel('MACD', fontsize=12)
-            ax_macd.grid(True, alpha=0.3)
-            ax_macd.legend(loc='upper left')
-        else:
-            ax_macd.set_visible(False)
+        # Plot volume as bar chart
+        ax_vol.bar(data.index, volume_data, color='blue', alpha=0.5)
+        ax_vol.set_ylabel('Volume', fontsize=12)
+        ax_vol.grid(True, alpha=0.3)
         
         # Format x-axis for all subplots
         for ax in axes:
@@ -140,7 +109,7 @@ class Visualizer:
         # Add a common xlabel
         fig.text(0.5, 0.02, 'Date', ha='center', fontsize=12)
         
-        # Adjust layout and save figure
+        # Adjust layout
         plt.tight_layout()
         plt.subplots_adjust(bottom=0.12)
         
@@ -154,11 +123,53 @@ class Visualizer:
         ax_price.text(0.02, 0.02, signal_text, transform=ax_price.transAxes, fontsize=11,
                     verticalalignment='bottom', bbox=props)
         
-        # Save and show figure
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Save figure with a more concise naming format
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M')
         filename = f"figures/{symbol}_signal_{timestamp}.png"
-        plt.savefig(filename, dpi=100, bbox_inches='tight')
+        plt.savefig(filename, dpi=80, bbox_inches='tight')
         logger.info(f"Saved signal chart to {filename}")
+        
+        # Close the figure to free memory
+        plt.close(fig)
+    
+    def plot_simplified_chart(self, data: pd.DataFrame, symbol: str, filename: str = None) -> None:
+        """
+        Plot a simplified price chart without technical indicators.
+        
+        Args:
+            data: DataFrame with price data.
+            symbol: The ticker symbol.
+            filename: Optional filename to save the chart.
+        """
+        if data.empty:
+            logger.warning("Cannot plot empty data")
+            return
+        
+        # Create a simple figure
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Plot price data
+        ax.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
+        
+        # Format axis
+        ax.set_title(f'{symbol} Price Chart', fontsize=16)
+        ax.set_ylabel('Price ($)', fontsize=12)
+        ax.set_xlabel('Date', fontsize=12)
+        ax.grid(True, alpha=0.3)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
+        
+        # Adjust layout
+        plt.tight_layout()
+        
+        # Save figure
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+            filename = f"figures/{symbol}_price_{timestamp}.png"
+        
+        plt.savefig(filename, dpi=80, bbox_inches='tight')
+        logger.info(f"Saved price chart to {filename}")
         
         # Close the figure to free memory
         plt.close(fig)

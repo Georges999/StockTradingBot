@@ -51,4 +51,8 @@ figures/
 
 # OS specific files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Alpaca API credentials
+ALPACA_API_KEY=PKNZNB27NTX1LAMBZHJU
+ALPACA_SECRET_KEY=aBlgsRjpGvIhLGQnJFG5vpK8ExVyJmh6QxfyWAWX

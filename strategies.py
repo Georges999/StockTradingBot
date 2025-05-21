@@ -53,7 +53,14 @@ class Strategy(ABC):
             pd.DataFrame: DataFrame with added indicators
         """
         # Default implementation adds all indicators
-        return TechnicalIndicators.add_indicators(data)
+        return self.indicators.calculate_indicators(data, {
+            'sma': {'periods': [20, 50, 200]},
+            'ema': {'periods': [9, 21]},
+            'rsi': {'period': 14},
+            'macd': {'fast': 12, 'slow': 26, 'signal': 9},
+            'bollinger_bands': {'period': 20, 'std_dev': 2},
+            'atr': {'period': 14}
+        })
 
 class MomentumStrategy(Strategy):
     """
@@ -92,12 +99,11 @@ class MomentumStrategy(Strategy):
             pd.DataFrame: DataFrame with added indicators
         """
         # Add specific indicators needed for this strategy
-        data = TechnicalIndicators.add_rsi(data, period=self.rsi_period)
-        data = TechnicalIndicators.add_macd(data, 
-                                           fast_period=self.macd_fast,
-                                           slow_period=self.macd_slow,
-                                           signal_period=self.macd_signal)
-        data = TechnicalIndicators.add_ema(data, periods=[20, 50])
+        data = self.indicators.calculate_indicators(data, {
+            'rsi': {'period': self.rsi_period, 'overbought': self.rsi_overbought, 'oversold': self.rsi_oversold},
+            'macd': {'fast': self.macd_fast, 'slow': self.macd_slow, 'signal': self.macd_signal},
+            'ema': {'periods': [20, 50]}
+        })
         return data
     
     def generate_signals(self, data):
@@ -125,9 +131,9 @@ class MomentumStrategy(Strategy):
         macd_buy_condition = (data['macd'] > data['macd_signal']) & (data['macd'].shift(1) <= data['macd_signal'].shift(1))
         macd_sell_condition = (data['macd'] < data['macd_signal']) & (data['macd'].shift(1) >= data['macd_signal'].shift(1))
         
-        # EMA conditions
-        ema_buy_condition = data['close'] > data['ema_20'] and data['ema_20'] > data['ema_50']
-        ema_sell_condition = data['close'] < data['ema_20'] and data['ema_20'] < data['ema_50']
+        # EMA conditions - Replace Python boolean operators (and/or) with pandas/numpy operators (&/|) 
+        ema_buy_condition = (data['close'] > data['ema_20']) & (data['ema_20'] > data['ema_50'])
+        ema_sell_condition = (data['close'] < data['ema_20']) & (data['ema_20'] < data['ema_50'])
         
         # Combined signals
         # Buy when RSI is oversold and MACD crosses above signal line
@@ -166,10 +172,10 @@ class MeanReversionStrategy(Strategy):
             pd.DataFrame: DataFrame with added indicators
         """
         # Add specific indicators needed for this strategy
-        data = TechnicalIndicators.add_bollinger_bands(data, 
-                                                      period=self.bb_period, 
-                                                      std_dev=self.bb_std_dev)
-        data = TechnicalIndicators.add_rsi(data)  # Add RSI as a confirmation indicator
+        data = self.indicators.calculate_indicators(data, {
+            'bollinger_bands': {'period': self.bb_period, 'std_dev': self.bb_std_dev},
+            'rsi': {'period': 14}
+        })
         return data
     
     def generate_signals(self, data):
@@ -246,7 +252,9 @@ class BreakoutStrategy(Strategy):
         data['low_channel'] = data['low'].rolling(window=self.period).min()
         
         # Add ATR for stop loss calculation
-        data = TechnicalIndicators.add_atr(data, period=self.atr_period)
+        data = self.indicators.calculate_indicators(data, {
+            'atr': {'period': self.atr_period}
+        })
         
         # Add volume for confirmation
         data['volume_sma'] = data['volume'].rolling(window=self.period).mean()
@@ -370,6 +378,87 @@ class CombinedStrategy(Strategy):
         
         return data
 
+class MachineLearningStrategy(Strategy):
+    """
+    Machine Learning strategy using ML models to predict price movements.
+    """
+    def __init__(self, config=None):
+        """
+        Initialize machine learning strategy.
+        
+        Args:
+            config: Configuration object
+        """
+        super().__init__(config)
+    
+    def add_indicators(self, data):
+        """
+        Add technical indicators for the ML model.
+        
+        Args:
+            data (pd.DataFrame): Price data
+            
+        Returns:
+            pd.DataFrame: DataFrame with added indicators
+        """
+        # Add a comprehensive set of indicators for ML model
+        data = self.indicators.calculate_indicators(data, {
+            'rsi': {'period': 14},
+            'macd': {'fast': 12, 'slow': 26, 'signal': 9},
+            'bollinger_bands': {'period': 20, 'std_dev': 2},
+            'atr': {'period': 14},
+            'ema': {'periods': [9, 20, 50, 200]}
+        })
+        
+        # Add additional features
+        data['return_1d'] = data['close'].pct_change(1)
+        data['return_5d'] = data['close'].pct_change(5)
+        data['volatility'] = data['return_1d'].rolling(window=20).std()
+        
+        return data
+    
+    def generate_signals(self, data):
+        """
+        Generate trading signals based on ML predictions.
+        
+        Args:
+            data (pd.DataFrame): Price and indicator data
+            
+        Returns:
+            pd.DataFrame: DataFrame with added signal column
+        """
+        # Ensure data has necessary indicators
+        data = self.add_indicators(data)
+        
+        # Initialize signals column
+        data['signal'] = 0
+        
+        # Placeholder for ML predictions
+        # In a real implementation, this would use pre-trained models to predict
+        # For now, we'll use a simple rule-based approach as a placeholder
+        data['ml_prediction'] = 0
+        
+        # Simple placeholder logic
+        bullish_condition = (
+            (data['rsi'] < 40) & 
+            (data['close'] > data['ema_50']) & 
+            (data['macd'] > data['macd_signal'])
+        )
+        
+        bearish_condition = (
+            (data['rsi'] > 60) & 
+            (data['close'] < data['ema_50']) & 
+            (data['macd'] < data['macd_signal'])
+        )
+        
+        data.loc[bullish_condition, 'ml_prediction'] = 1
+        data.loc[bearish_condition, 'ml_prediction'] = -1
+        
+        # Set signals based on ML predictions
+        data['signal'] = data['ml_prediction']
+        
+        return data
+
 class StrategyFactory:
     """
     Factory class to create strategy instances based on configuration.
@@ -394,6 +483,8 @@ class StrategyFactory:
             return BreakoutStrategy(config)
         elif strategy_name == 'combined':
             return CombinedStrategy(config)
+        elif strategy_name == 'ml':
+            return MachineLearningStrategy(config)
         else:
             raise ValueError(f"Unknown strategy: {strategy_name}")
 

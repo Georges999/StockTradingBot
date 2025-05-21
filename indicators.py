@@ -21,6 +21,58 @@ class TechnicalIndicators:
         """Initialize the TechnicalIndicators class."""
         pass
     
+    # Add static methods to handle direct class calls
+    @staticmethod
+    def add_rsi(data, **kwargs):
+        """Static method wrapper for add_rsi to handle direct class calls."""
+        instance = TechnicalIndicators()
+        period = kwargs.get('period', 14)
+        return instance.calculate_indicators(data, {'rsi': {'period': period}})
+        
+    @staticmethod
+    def add_macd(data, **kwargs):
+        """Static method wrapper for add_macd to handle direct class calls."""
+        instance = TechnicalIndicators()
+        fast_period = kwargs.get('fast_period', 12)
+        slow_period = kwargs.get('slow_period', 26)
+        signal_period = kwargs.get('signal_period', 9)
+        return instance.calculate_indicators(data, {'macd': {'fast': fast_period, 'slow': slow_period, 'signal': signal_period}})
+    
+    @staticmethod
+    def add_bollinger_bands(data, **kwargs):
+        """Static method wrapper for add_bollinger_bands to handle direct class calls."""
+        instance = TechnicalIndicators()
+        period = kwargs.get('period', 20)
+        std_dev = kwargs.get('std_dev', 2)
+        return instance.calculate_indicators(data, {'bollinger_bands': {'period': period, 'std_dev': std_dev}})
+    
+    @staticmethod
+    def add_atr(data, **kwargs):
+        """Static method wrapper for add_atr to handle direct class calls."""
+        instance = TechnicalIndicators()
+        period = kwargs.get('period', 14)
+        return instance.calculate_indicators(data, {'atr': {'period': period}})
+    
+    @staticmethod
+    def add_ema(data, **kwargs):
+        """Static method wrapper for add_ema to handle direct class calls."""
+        instance = TechnicalIndicators()
+        periods = kwargs.get('periods', [9, 21])
+        return instance.calculate_indicators(data, {'ema': {'periods': periods}})
+    
+    @staticmethod
+    def add_indicators(data):
+        """Static method wrapper for calculating all indicators."""
+        instance = TechnicalIndicators()
+        return instance.calculate_indicators(data, {
+            'sma': {'periods': [20, 50, 200]},
+            'ema': {'periods': [9, 21]},
+            'rsi': {'period': 14},
+            'macd': {'fast': 12, 'slow': 26, 'signal': 9},
+            'bollinger_bands': {'period': 20, 'std_dev': 2},
+            'atr': {'period': 14}
+        })
+    
     def calculate_indicators(self, data: pd.DataFrame, indicators_config: Dict) -> pd.DataFrame:
         """
         Calculate technical indicators based on configuration.
