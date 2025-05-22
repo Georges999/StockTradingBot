@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
 import alpaca_trade_api as tradeapi
 from dotenv import load_dotenv
+import yfinance as yf
 
 # Setup logging
 logging.basicConfig(
@@ -40,16 +41,25 @@ class AlpacaTrader:
             logger.error("Alpaca API credentials not found. Check your .env file.")
             raise ValueError("Alpaca API credentials not found. Check your .env file.")
         
-        # Initialize API
-        self.api = tradeapi.REST(
-            self.api_key,
-            self.api_secret,
-            self.base_url,
-            api_version='v2'
-        )
+        # Initialize API - remove additional v2 in api_version if base_url already contains it
+        if 'v2' in self.base_url:
+            self.api = tradeapi.REST(
+                self.api_key,
+                self.api_secret,
+                self.base_url,
+                api_version=''  # Empty since v2 is in the URL
+            )
+        else:
+            self.api = tradeapi.REST(
+                self.api_key,
+                self.api_secret,
+                self.base_url,
+                api_version='v2'
+            )
         
         # Check connection
         try:
+            # Use a direct call to the API endpoint to avoid potential path issues
             account = self.api.get_account()
             logger.info(f"Connected to Alpaca account: {account.id}")
             logger.info(f"Account status: {account.status}")
@@ -57,6 +67,7 @@ class AlpacaTrader:
             logger.info(f"Portfolio value: ${float(account.portfolio_value):.2f}")
         except Exception as e:
             logger.error(f"Failed to connect to Alpaca: {str(e)}")
+            logger.warning("Make sure your .env file has correct API credentials and the API URL is correct")
             raise
         
         # Initialize strategy performance tracking
@@ -115,116 +126,125 @@ class AlpacaTrader:
         Returns:
             dict: Trade information
         """
-        if signal == 0:  # Hold signal, do nothing
+        # Always log the signal for debugging
+        signal_types = {1: "BUY", -1: "SELL", 0: "HOLD"}
+        signal_text = signal_types.get(signal, f"UNKNOWN({signal})")
+        logger.info(f"SIGNAL RECEIVED: {signal_text} for {symbol} from {strategy}")
+        
+        if signal == 0:  # Hold signal
             logger.info(f"HOLD signal for {symbol} - no action taken")
             return {'symbol': symbol, 'action': 'HOLD', 'status': 'no_action', 'strategy': strategy}
         
+        # For testing - if we're not connected to Alpaca, simulate the trade
+        if not hasattr(self, 'api') or self.api is None:
+            logger.warning(f"No Alpaca API connection - SIMULATING {signal_text} for {symbol}")
+            return {
+                'symbol': symbol, 
+                'action': signal_text,
+                'quantity': quantity or 10,  # Default quantity for simulation
+                'price': 100.0,  # Dummy price
+                'status': 'simulated',
+                'strategy': strategy
+            }
+        
         try:
-            # Check if market is open
-            clock = self.api.get_clock()
-            if not clock.is_open:
-                next_open = clock.next_open.strftime('%Y-%m-%d %H:%M:%S')
-                logger.warning(f"Market is closed. Next open: {next_open}")
-                return {'symbol': symbol, 'action': 'NONE', 'status': 'market_closed', 'strategy': strategy}
+            # Get account information
+            account = self.api.get_account()
+            buying_power = float(account.buying_power)
+            
+            # Get current position if any
+            try:
+                position = self.api.get_position(symbol)
+                current_position = int(position.qty)
+                position_exists = True
+            except:
+                current_position = 0
+                position_exists = False
             
             # Get current price
-            last_quote = self.api.get_latest_quote(symbol)
-            current_price = (float(last_quote.ap) + float(last_quote.bp)) / 2  # Midpoint between ask and bid
+            try:
+                ticker_data = self.api.get_latest_trade(symbol)
+                current_price = float(ticker_data.price)
+            except Exception as e:
+                logger.error(f"Error getting price for {symbol}: {str(e)}")
+                # Fallback to Yahoo Finance
+                try:
+                    ticker = yf.Ticker(symbol)
+                    current_price = ticker.history(period='1d').iloc[-1]['Close']
+                except:
+                    logger.error(f"Could not get price for {symbol} from any source")
+                    return {'symbol': symbol, 'action': 'ERROR', 'status': 'price_error', 'strategy': strategy}
             
-            # Check current position
-            position_exists = symbol in self.current_positions
-            current_position = self.current_positions.get(symbol, {'qty': 0})
-            current_shares = current_position.get('qty', 0)
+            # Calculate quantity if not provided
+            if quantity is None:
+                if signal == 1:  # Buy
+                    # Use a percentage of buying power based on risk
+                    trade_value = buying_power * risk_pct
+                    quantity = max(1, int(trade_value / current_price))
+                elif signal == -1 and position_exists:  # Sell
+                    # Sell all shares
+                    quantity = abs(current_position)
             
-            # Determine action based on signal and current position
-            if signal == 1:  # Buy signal
-                if position_exists and current_shares > 0:
-                    logger.info(f"Already long {current_shares} shares of {symbol} - no additional buy")
-                    return {'symbol': symbol, 'action': 'HOLD', 'status': 'already_long', 'strategy': strategy}
+            # Execute the trade
+            if signal == 1:  # Buy
+                if buying_power < current_price:
+                    logger.warning(f"Insufficient buying power (${buying_power:.2f}) to buy {symbol} at ${current_price:.2f}")
+                    return {'symbol': symbol, 'action': 'BUY', 'status': 'insufficient_funds', 'strategy': strategy}
                 
-                # Calculate quantity if not specified
-                if quantity is None:
-                    portfolio_value = self.get_portfolio_value()
-                    risk_amount = portfolio_value * risk_pct
-                    # Use a simple position sizing based on risk percentage
-                    quantity = max(1, int(risk_amount / current_price))
+                try:
+                    # Place a market order to buy
+                    order = self.api.submit_order(
+                        symbol=symbol,
+                        qty=quantity,
+                        side='buy',
+                        type='market',
+                        time_in_force='day'
+                    )
+                    logger.info(f"BUY order placed for {quantity} shares of {symbol} at ~${current_price:.2f}")
+                    return {
+                        'symbol': symbol,
+                        'action': 'BUY',
+                        'quantity': quantity,
+                        'price': current_price,
+                        'order_id': order.id,
+                        'status': 'submitted',
+                        'strategy': strategy
+                    }
+                except Exception as e:
+                    logger.error(f"Error placing buy order for {symbol}: {str(e)}")
+                    return {'symbol': symbol, 'action': 'BUY', 'status': 'order_error', 'error': str(e), 'strategy': strategy}
+                    
+            elif signal == -1:  # Sell
+                if not position_exists or current_position <= 0:
+                    logger.warning(f"No position in {symbol} to sell")
+                    return {'symbol': symbol, 'action': 'SELL', 'status': 'no_position', 'strategy': strategy}
                 
-                # Place buy order
-                logger.info(f"Placing market order to BUY {quantity} shares of {symbol} at ~${current_price:.2f}")
-                order = self.api.submit_order(
-                    symbol=symbol,
-                    qty=quantity,
-                    side='buy',
-                    type='market',
-                    time_in_force='day'
-                )
-                
-                # Record the trade
-                trade_info = {
-                    'symbol': symbol,
-                    'action': 'BUY',
-                    'quantity': quantity,
-                    'price': current_price,
-                    'order_id': order.id,
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'strategy': strategy,
-                    'status': 'submitted'
-                }
-                self.position_history.append(trade_info)
-                logger.info(f"Buy order placed for {symbol}: {order.id}")
-                
-                # Update strategy performance
-                self._update_strategy_performance(strategy, 'buy', symbol, quantity, current_price)
-                
-                # Update our positions
-                self.update_positions()
-                
-                return trade_info
-                
-            elif signal == -1:  # Sell signal
-                if not position_exists or current_shares <= 0:
-                    logger.info(f"No position in {symbol} to sell")
-                    return {'symbol': symbol, 'action': 'HOLD', 'status': 'no_position', 'strategy': strategy}
-                
-                # Determine quantity to sell
-                if quantity is None or quantity > current_shares:
-                    quantity = current_shares
-                
-                # Place sell order
-                logger.info(f"Placing market order to SELL {quantity} shares of {symbol} at ~${current_price:.2f}")
-                order = self.api.submit_order(
-                    symbol=symbol,
-                    qty=quantity,
-                    side='sell',
-                    type='market',
-                    time_in_force='day'
-                )
-                
-                # Record the trade
-                trade_info = {
-                    'symbol': symbol,
-                    'action': 'SELL',
-                    'quantity': quantity,
-                    'price': current_price,
-                    'order_id': order.id,
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'strategy': strategy,
-                    'status': 'submitted'
-                }
-                self.position_history.append(trade_info)
-                logger.info(f"Sell order placed for {symbol}: {order.id}")
-                
-                # Update strategy performance
-                self._update_strategy_performance(strategy, 'sell', symbol, quantity, current_price)
-                
-                # Update our positions
-                self.update_positions()
-                
-                return trade_info
-        
+                try:
+                    # Place a market order to sell
+                    order = self.api.submit_order(
+                        symbol=symbol,
+                        qty=quantity,
+                        side='sell',
+                        type='market',
+                        time_in_force='day'
+                    )
+                    logger.info(f"SELL order placed for {quantity} shares of {symbol} at ~${current_price:.2f}")
+                    return {
+                        'symbol': symbol,
+                        'action': 'SELL',
+                        'quantity': quantity,
+                        'price': current_price,
+                        'order_id': order.id,
+                        'status': 'submitted',
+                        'strategy': strategy
+                    }
+                except Exception as e:
+                    logger.error(f"Error placing sell order for {symbol}: {str(e)}")
+                    return {'symbol': symbol, 'action': 'SELL', 'status': 'order_error', 'error': str(e), 'strategy': strategy}
+            
         except Exception as e:
             logger.error(f"Error executing trade for {symbol}: {str(e)}")
-            return {'symbol': symbol, 'action': 'ERROR', 'status': 'error', 'error': str(e), 'strategy': strategy}
+            return {'symbol': symbol, 'action': signal_text, 'status': 'error', 'error': str(e), 'strategy': strategy}
     
     def process_signals(self, signals_data, strategy_selector=None):
         """
@@ -259,19 +279,39 @@ class AlpacaTrader:
                     logger.warning(f"No valid signals found for {symbol}")
                     continue
                 
-                # Select the best strategy if a selector is provided
-                if strategy_selector and len(strategy_signals) > 1:
-                    best_strategy = strategy_selector(symbol, strategy_signals, self.strategy_performance)
+                # Check if we already have a position in this symbol
+                position_exists = symbol in self.current_positions
+                
+                # If we don't have a position, filter out SELL and HOLD signals
+                if not position_exists:
+                    # Look for BUY signals only - ignore SELL and HOLD
+                    buy_strategies = {name: signal for name, signal in strategy_signals.items() 
+                                     if signal == 1}
+                    
+                    if buy_strategies:
+                        # Pick the first buy strategy (preferring trend-following strategies)
+                        best_strategy = next(iter(buy_strategies.keys()))
+                        signal = 1
+                        
+                        # Execute the BUY trade
+                        trade_info = self.execute_trade(symbol, signal, strategy=best_strategy)
+                        executed_trades.append(trade_info)
+                    else:
+                        # No BUY signals for a stock we don't own - skip
+                        logger.info(f"No BUY signals for {symbol} and no existing position - skipping")
+                        continue
                 else:
-                    # Otherwise, just use the first available strategy
-                    best_strategy = next(iter(strategy_signals.keys()))
-                
-                # Get the signal from the selected strategy
-                signal = strategy_signals.get(best_strategy, 0)
-                
-                # Execute the trade
-                trade_info = self.execute_trade(symbol, signal, strategy=best_strategy)
-                executed_trades.append(trade_info)
+                    # If we have a position, we can process any signal type
+                    if strategy_selector and len(strategy_signals) > 1:
+                        best_strategy = strategy_selector(symbol, strategy_signals, self.strategy_performance)
+                    else:
+                        best_strategy = next(iter(strategy_signals.keys()))
+                    
+                    signal = strategy_signals.get(best_strategy, 0)
+                    
+                    # Execute the trade (BUY more, SELL, or HOLD)
+                    trade_info = self.execute_trade(symbol, signal, strategy=best_strategy)
+                    executed_trades.append(trade_info)
                 
             except Exception as e:
                 logger.error(f"Error processing signals for {symbol}: {str(e)}")
@@ -481,26 +521,27 @@ def best_strategy_factory(market_regime='auto'):
             
             current_regime = 'trending' if trending_perf > ranging_perf else 'ranging'
         
-        # Adjust weights based on regime
-        weights = {}
+        # More balanced weights - don't heavily favor any one strategy
+        weights = {
+            'MA Crossover': 1.0,
+            'Momentum Strategy': 1.0,
+            'Breakout Strategy': 1.0,
+            'Dual Strategy System': 1.0,
+            'RSI Strategy': 1.0,
+            'Mean Reversion Strategy': 1.0
+        }
+        
+        # Only slightly adjust based on market regime
         if current_regime == 'trending':
-            weights = {
-                'MA Crossover': 1.5,
-                'Momentum Strategy': 1.3,
-                'Breakout Strategy': 1.2,
-                'Dual Strategy System': 1.0,
-                'RSI Strategy': 0.7,
-                'Mean Reversion Strategy': 0.5
-            }
+            weights['MA Crossover'] = 1.2
+            weights['Momentum Strategy'] = 1.2
+            weights['RSI Strategy'] = 0.9
+            weights['Mean Reversion Strategy'] = 0.9
         else:  # ranging
-            weights = {
-                'Mean Reversion Strategy': 1.5,
-                'RSI Strategy': 1.3,
-                'Dual Strategy System': 1.0,
-                'Breakout Strategy': 0.8,
-                'MA Crossover': 0.6,
-                'Momentum Strategy': 0.5
-            }
+            weights['MA Crossover'] = 0.9
+            weights['Momentum Strategy'] = 0.9
+            weights['RSI Strategy'] = 1.2
+            weights['Mean Reversion Strategy'] = 1.2
         
         # Calculate scores
         scores = {}

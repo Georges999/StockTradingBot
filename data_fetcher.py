@@ -9,6 +9,7 @@ import pandas as pd
 import yfinance as yf
 import logging
 from datetime import datetime, timedelta
+import pytz
 
 # Setup basic logging
 logging.basicConfig(
@@ -106,24 +107,44 @@ class DataFetcher:
     
     def is_market_open(self):
         """
-        Simple check if US market is likely open.
-        This is a simplified approach and doesn't account for holidays.
+        Check if US market is likely open.
+        For testing purposes, this function will assume market is open most of the time.
         
         Returns:
             bool: True if market is likely open, False otherwise
         """
-        now = datetime.now()
-        
-        # Check if it's a weekday (0-4 are Monday to Friday)
-        is_weekday = now.weekday() < 5
-        
-        # US market hours (9:30 AM to 4:00 PM Eastern Time)
-        # This is a rough approximation assuming local time
-        market_open = now.replace(hour=9, minute=30, second=0)
-        market_close = now.replace(hour=16, minute=0, second=0)
-        is_market_hours = market_open <= now <= market_close
-        
-        return is_weekday and is_market_hours
+        try:
+            # TESTING MODE: Always return True for more active trading during development
+            # Remove or comment this line in production
+            return True
+            
+            # Current time in Eastern Time (US Market time)
+            now = datetime.now(pytz.timezone('US/Eastern'))
+            
+            # Check if it's a weekday
+            if now.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+                logger.debug("Market closed: Weekend")
+                return False
+            
+            # Check if it's during market hours (9:30 AM - 4:00 PM Eastern)
+            market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+            market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+            
+            # FOR TESTING: Extended hours (8:00 AM - 6:00 PM Eastern)
+            extended_open = now.replace(hour=8, minute=0, second=0, microsecond=0)
+            extended_close = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            
+            # Use extended hours for more trading opportunities
+            if extended_open <= now <= extended_close:
+                return True
+            else:
+                logger.debug(f"Market closed: Current time {now.strftime('%H:%M:%S')} is outside trading hours")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error checking market status: {str(e)}")
+            # In case of error, assume market is open for testing purposes
+            return True
 
 
 # Simple test function

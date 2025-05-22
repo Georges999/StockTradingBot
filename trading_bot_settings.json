@@ -1,0 +1,18 @@
+{
+    "symbols": "SPY,RSP,IGV,XLV,XLU,NVDA",
+    "interval": "1d",
+    "period": "6mo",
+    "update_interval": 10,
+    "auto_trade_enabled": true,
+    "market_regime": "auto",
+    "risk_percent": 0.5,
+    "max_positions": 10,
+    "save_charts": true,
+    "notify_on_signals": true,
+    "ma_crossover_enabled": true,
+    "rsi_strategy_enabled": true,
+    "momentum_strategy_enabled": true,
+    "breakout_strategy_enabled": true,
+    "mean_reversion_enabled": true,
+    "dual_strategy_enabled": true
+}

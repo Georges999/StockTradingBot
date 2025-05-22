@@ -20,6 +20,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
 import pandas as pd
 from PIL import Image, ImageTk
+import json
+from dotenv import load_dotenv
 
 from data_fetcher import DataFetcher
 from strategy import (
@@ -82,31 +84,37 @@ class AutoTradingInterface(tk.Tk):
         self.geometry("1200x800")
         self.minsize(1000, 700)
         
-        # Set up variables
+        # Settings file path
+        self.settings_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'trading_bot_settings.json')
+        
+        # Set up variables with more aggressive defaults
         self.symbols = tk.StringVar(value="AAPL,MSFT,GOOGL,AMZN,META")
         self.strategy = tk.StringVar(value="MA Crossover")
-        self.interval = tk.StringVar(value="1d")
+        self.interval = tk.StringVar(value="1d")  # Daily data
         self.period = tk.StringVar(value="1mo")
-        self.update_interval = tk.IntVar(value=60)
+        self.update_interval = tk.IntVar(value=5)  # 5 seconds update interval (much faster)
         self.market_regime = tk.StringVar(value="auto")
-        self.risk_percent = tk.DoubleVar(value=0.02)
-        self.max_positions = tk.IntVar(value=5)
-        self.auto_trade_enabled = tk.BooleanVar(value=False)
+        self.risk_percent = tk.DoubleVar(value=0.05)  # More aggressive risk (5% instead of 2%)
+        self.max_positions = tk.IntVar(value=10)  # More positions allowed
+        self.auto_trade_enabled = tk.BooleanVar(value=True)  # Auto-trading ENABLED by default
         
-        # Strategy enable/disable variables
+        # Strategy enable/disable variables - Enable all strategies by default
         self.ma_crossover_enabled = tk.BooleanVar(value=True)
         self.rsi_strategy_enabled = tk.BooleanVar(value=True)
         self.momentum_strategy_enabled = tk.BooleanVar(value=True)
-        self.breakout_strategy_enabled = tk.BooleanVar(value=False)  # Disabled by default as it needs more data
-        self.mean_reversion_enabled = tk.BooleanVar(value=False)     # Disabled by default as it needs more data
+        self.breakout_strategy_enabled = tk.BooleanVar(value=True)  # Enabled by default now
+        self.mean_reversion_enabled = tk.BooleanVar(value=True)    # Enabled by default now
         self.dual_strategy_enabled = tk.BooleanVar(value=True)
         
         # Advanced settings
-        self.notify_on_signals = tk.BooleanVar(value=False)
+        self.notify_on_signals = tk.BooleanVar(value=True)  # Enable notifications
         self.save_charts = tk.BooleanVar(value=True)
         self.max_charts = tk.IntVar(value=30)
         self.stop_loss_pct = tk.DoubleVar(value=5.0)
         self.take_profit_pct = tk.DoubleVar(value=10.0)
+        
+        # Load saved settings if they exist
+        self.load_settings()
         
         # Initialize components
         self.data_fetcher = DataFetcher()
@@ -130,6 +138,9 @@ class AutoTradingInterface(tk.Tk):
         self.update_available_charts()
         
         logger.info("Auto Trading Interface started")
+        
+        # Check Alpaca API settings and show warning if needed
+        self.after(1000, self.check_alpaca_settings)
     
     def create_widgets(self):
         """Create the interface widgets."""
@@ -453,6 +464,9 @@ class AutoTradingInterface(tk.Tk):
                 return
         
         try:
+            # Save settings before starting bot
+            self.save_settings()
+            
             # Initialize strategies based on checkboxes
             self._setup_strategies()
             
@@ -637,7 +651,7 @@ class AutoTradingInterface(tk.Tk):
             self.status_var.set(f"Error: {str(e)}")
     
     def refresh_data(self):
-        """Refresh data for the currently configured symbols."""
+        """Refresh data for the currently configured symbols without affecting auto-trade settings."""
         # If the bot is running, it will update automatically
         if self.auto_trader and self.auto_trader.running:
             messagebox.showinfo("Bot Running", "The bot is already running and updating data automatically.")
@@ -658,12 +672,17 @@ class AutoTradingInterface(tk.Tk):
             # Initialize strategies based on checkboxes
             self._setup_strategies()
             
+            # Store current auto_trade setting to restore it later
+            current_auto_trade = self.auto_trade_enabled.get()
+            
             # Create a temporary AutoTrader just for data refresh
+            # Force auto_trade to False to prevent unwanted trades during refresh
+            logger.info("Creating temporary AutoTrader for data refresh only (auto-trading disabled for refresh)")
             temp_trader = AutoTrader(
                 symbols=symbol_list,
                 interval=self.interval.get(),
                 period=self.period.get(),
-                auto_trade=False
+                auto_trade=False  # Always set to False for data refresh
             )
             
             # Process symbols once
@@ -678,7 +697,11 @@ class AutoTradingInterface(tk.Tk):
             # Update available charts
             self.update_available_charts()
             
-            self.status_var.set("Data refresh complete")
+            # Restore original auto_trade setting to the UI
+            self.auto_trade_enabled.set(current_auto_trade)
+            
+            self.status_var.set("Data refresh complete (auto-trade setting preserved)")
+            logger.info(f"Data refresh completed. Auto-trade setting remains: {'ENABLED' if current_auto_trade else 'DISABLED'}")
             
         except Exception as e:
             messagebox.showerror("Error Refreshing Data", f"Error: {str(e)}")
@@ -725,7 +748,12 @@ class AutoTradingInterface(tk.Tk):
             # Update visualization settings
             self.visualizer.max_figures = max_charts
             
-            messagebox.showinfo("Settings", "Settings applied successfully. They will take effect when you restart the bot.")
+            # Save settings to file
+            if self.save_settings():
+                messagebox.showinfo("Settings", "Settings applied and saved successfully. They will take effect when you restart the bot.")
+            else:
+                messagebox.showinfo("Settings", "Settings applied successfully. They will take effect when you restart the bot.")
+            
             logger.info("Settings applied successfully")
             
         except ValueError as e:
@@ -739,14 +767,49 @@ class AutoTradingInterface(tk.Tk):
     def apply_auto_trade_settings(self):
         """Apply the auto trading settings."""
         if self.auto_trader and self.auto_trader.running:
-            messagebox.showinfo("Bot Running", "Please stop the bot before changing settings.")
-            return
+            # Even if the bot is running, we can update the auto_trade setting
+            try:
+                self.auto_trader.auto_trade = self.auto_trade_enabled.get()
+                self.auto_trader.market_regime = self.market_regime.get()
+                self.auto_trader.risk_pct = self.risk_percent.get()
+                self.auto_trader.max_active_positions = self.max_positions.get()
+                
+                # Additional settings for risk management
+                if hasattr(self.auto_trader, 'set_risk_parameters'):
+                    self.auto_trader.set_risk_parameters(
+                        stop_loss_pct=self.stop_loss_pct.get(),
+                        take_profit_pct=self.take_profit_pct.get()
+                    )
+                
+                # Save settings
+                self.save_settings()
+                
+                messagebox.showinfo("Auto Trading Settings", 
+                           f"Auto trading {'enabled' if self.auto_trade_enabled.get() else 'disabled'}, " +
+                           f"using {self.market_regime.get()} market regime, " +
+                           f"{self.risk_percent.get()}% risk, " +
+                           f"max {self.max_positions.get()} positions. " +
+                           f"Changes applied to running bot and saved.")
+                
+                logger.info(f"Auto trading settings updated on running bot: enabled={self.auto_trade_enabled.get()}, " +
+                          f"regime={self.market_regime.get()}, risk={self.risk_percent.get()}%, " +
+                          f"max_positions={self.max_positions.get()}")
+                return
+            except Exception as e:
+                messagebox.showerror("Error", f"Error updating running bot settings: {str(e)}")
+                logger.error(f"Error updating running bot settings: {str(e)}")
+                return
             
+        # Save settings
+        self.save_settings()
+        
         messagebox.showinfo("Auto Trading Settings", 
                            f"Auto trading {'enabled' if self.auto_trade_enabled.get() else 'disabled'}, " +
                            f"using {self.market_regime.get()} market regime, " +
                            f"{self.risk_percent.get()}% risk, " +
-                           f"max {self.max_positions.get()} positions.")
+                           f"max {self.max_positions.get()} positions. " +
+                           f"Settings will apply when you start the bot.")
+        
         logger.info(f"Auto trading settings updated: enabled={self.auto_trade_enabled.get()}, " +
                    f"regime={self.market_regime.get()}, risk={self.risk_percent.get()}%, " +
                    f"max_positions={self.max_positions.get()}")
@@ -757,29 +820,32 @@ class AutoTradingInterface(tk.Tk):
         self.strategy.set("MA Crossover")
         self.interval.set("1d")
         self.period.set("1mo")
-        self.update_interval.set(60)
+        self.update_interval.set(5)
         self.market_regime.set("auto")
-        self.risk_percent.set(0.02)
-        self.max_positions.set(5)
-        self.auto_trade_enabled.set(False)
+        self.risk_percent.set(0.05)
+        self.max_positions.set(10)
+        self.auto_trade_enabled.set(True)
         
         # Reset strategy enable/disable variables
         self.ma_crossover_enabled.set(True)
         self.rsi_strategy_enabled.set(True)
         self.momentum_strategy_enabled.set(True)
-        self.breakout_strategy_enabled.set(False)
-        self.mean_reversion_enabled.set(False)
+        self.breakout_strategy_enabled.set(True)
+        self.mean_reversion_enabled.set(True)
         self.dual_strategy_enabled.set(True)
         
         # Reset advanced settings
-        self.notify_on_signals.set(False)
+        self.notify_on_signals.set(True)
         self.save_charts.set(True)
         self.max_charts.set(30)
         self.stop_loss_pct.set(5.0)
         self.take_profit_pct.set(10.0)
         
-        messagebox.showinfo("Settings", "Settings reset to defaults.")
-        logger.info("Settings reset to defaults")
+        # Save defaults to file
+        self.save_settings()
+        
+        messagebox.showinfo("Settings", "Settings reset to defaults and saved.")
+        logger.info("Settings reset to defaults and saved")
     
     def update_available_charts(self):
         """Update the list of available charts."""
@@ -922,6 +988,147 @@ class AutoTradingInterface(tk.Tk):
             self.strategy_manager.add_strategy(EnhancedMovingAverageCrossover(short_window=20, long_window=50))
         
         logger.info(f"Initialized {len(self.strategy_manager.strategies)} trading strategies")
+
+    def save_settings(self):
+        """Save current settings to a JSON file."""
+        settings = {
+            'symbols': self.symbols.get(),
+            'strategy': self.strategy.get(),
+            'interval': self.interval.get(),
+            'period': self.period.get(),
+            'update_interval': self.update_interval.get(),
+            'market_regime': self.market_regime.get(),
+            'risk_percent': self.risk_percent.get(),
+            'max_positions': self.max_positions.get(),
+            'auto_trade_enabled': self.auto_trade_enabled.get(),
+            
+            # Strategy settings
+            'ma_crossover_enabled': self.ma_crossover_enabled.get(),
+            'rsi_strategy_enabled': self.rsi_strategy_enabled.get(),
+            'momentum_strategy_enabled': self.momentum_strategy_enabled.get(),
+            'breakout_strategy_enabled': self.breakout_strategy_enabled.get(),
+            'mean_reversion_enabled': self.mean_reversion_enabled.get(),
+            'dual_strategy_enabled': self.dual_strategy_enabled.get(),
+            
+            # Advanced settings
+            'notify_on_signals': self.notify_on_signals.get(),
+            'save_charts': self.save_charts.get(),
+            'max_charts': self.max_charts.get(),
+            'stop_loss_pct': self.stop_loss_pct.get(),
+            'take_profit_pct': self.take_profit_pct.get(),
+        }
+        
+        try:
+            with open(self.settings_file, 'w') as f:
+                json.dump(settings, f, indent=4)
+            logger.info(f"Settings saved to {self.settings_file}")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving settings: {str(e)}")
+            return False
+    
+    def load_settings(self):
+        """Load settings from a JSON file if it exists."""
+        if not os.path.exists(self.settings_file):
+            logger.info("No settings file found. Using default settings.")
+            return False
+        
+        try:
+            with open(self.settings_file, 'r') as f:
+                settings = json.load(f)
+            
+            # Apply settings to variables
+            if 'symbols' in settings:
+                self.symbols.set(settings['symbols'])
+            if 'strategy' in settings:
+                self.strategy.set(settings['strategy'])
+            if 'interval' in settings:
+                self.interval.set(settings['interval'])
+            if 'period' in settings:
+                self.period.set(settings['period'])
+            if 'update_interval' in settings:
+                self.update_interval.set(settings['update_interval'])
+            if 'market_regime' in settings:
+                self.market_regime.set(settings['market_regime'])
+            if 'risk_percent' in settings:
+                self.risk_percent.set(settings['risk_percent'])
+            if 'max_positions' in settings:
+                self.max_positions.set(settings['max_positions'])
+            if 'auto_trade_enabled' in settings:
+                self.auto_trade_enabled.set(settings['auto_trade_enabled'])
+            
+            # Strategy settings
+            if 'ma_crossover_enabled' in settings:
+                self.ma_crossover_enabled.set(settings['ma_crossover_enabled'])
+            if 'rsi_strategy_enabled' in settings:
+                self.rsi_strategy_enabled.set(settings['rsi_strategy_enabled'])
+            if 'momentum_strategy_enabled' in settings:
+                self.momentum_strategy_enabled.set(settings['momentum_strategy_enabled'])
+            if 'breakout_strategy_enabled' in settings:
+                self.breakout_strategy_enabled.set(settings['breakout_strategy_enabled'])
+            if 'mean_reversion_enabled' in settings:
+                self.mean_reversion_enabled.set(settings['mean_reversion_enabled'])
+            if 'dual_strategy_enabled' in settings:
+                self.dual_strategy_enabled.set(settings['dual_strategy_enabled'])
+            
+            # Advanced settings
+            if 'notify_on_signals' in settings:
+                self.notify_on_signals.set(settings['notify_on_signals'])
+            if 'save_charts' in settings:
+                self.save_charts.set(settings['save_charts'])
+            if 'max_charts' in settings:
+                self.max_charts.set(settings['max_charts'])
+            if 'stop_loss_pct' in settings:
+                self.stop_loss_pct.set(settings['stop_loss_pct'])
+            if 'take_profit_pct' in settings:
+                self.take_profit_pct.set(settings['take_profit_pct'])
+            
+            logger.info(f"Settings loaded from {self.settings_file}")
+            return True
+        except Exception as e:
+            logger.error(f"Error loading settings: {str(e)}")
+            return False
+
+    def check_alpaca_settings(self):
+        """Check if Alpaca API settings are configured correctly."""
+        # Load environment variables
+        load_dotenv()
+        
+        api_key = os.getenv('ALPACA_API_KEY')
+        api_secret = os.getenv('ALPACA_SECRET_KEY')
+        
+        # Check if basic API settings exist
+        if not api_key or not api_secret or api_key == 'your_alpaca_api_key_here' or api_secret == 'your_alpaca_secret_key_here':
+            messagebox.showwarning(
+                "Alpaca API Configuration Required",
+                "Alpaca API credentials are missing or using example values.\n\n"
+                "To use auto-trading features:\n"
+                "1. Rename env.example to .env\n"
+                "2. Edit .env with your Alpaca API credentials\n"
+                "3. Restart the application\n\n"
+                "You can still use the bot for signal generation without Alpaca credentials."
+            )
+            logger.warning("Alpaca API credentials are missing or using example values. Auto-trading will not be available.")
+            # Set auto-trade to disabled since we know it won't work
+            self.auto_trade_enabled.set(False)
+            return False
+        
+        # Check if URL has the double v2 issue
+        base_url = os.getenv('ALPACA_BASE_URL', '')
+        if '/v2/' in base_url:
+            messagebox.showwarning(
+                "Incorrect Alpaca API URL",
+                "Your ALPACA_BASE_URL contains '/v2/' which will cause connection errors.\n\n"
+                "Please edit your .env file and remove '/v2/' from the URL.\n"
+                "Example correct URL: https://paper-api.alpaca.markets\n\n"
+                "The API client adds 'v2' automatically."
+            )
+            logger.warning("Incorrect Alpaca API URL format detected. Auto-trading will not be available.")
+            # Set auto-trade to disabled since we know it won't work
+            self.auto_trade_enabled.set(False)
+            return False
+            
+        return True
 
 if __name__ == "__main__":
     app = AutoTradingInterface()
