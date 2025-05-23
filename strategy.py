@@ -466,7 +466,7 @@ class BreakoutStrategy(Strategy):
         buy_condition = (
             (df['close'] > df['resistance']) &  # Close above resistance
             (df['volume_ratio'] > self.volume_factor) &  # Increased volume
-            (df['consolidation'].shift(1).fillna(False)) &  # Previous consolidation
+            (df['consolidation'].shift(1).astype(bool).fillna(False)) &  # Previous consolidation
             (df['adx'] > 20)  # Trending market
         )
         
@@ -474,7 +474,7 @@ class BreakoutStrategy(Strategy):
         sell_condition = (
             (df['close'] < df['support']) &  # Close below support
             (df['volume_ratio'] > self.volume_factor) &  # Increased volume
-            (df['consolidation'].shift(1).fillna(False)) &  # Previous consolidation
+            (df['consolidation'].shift(1).astype(bool).fillna(False)) &  # Previous consolidation
             (df['adx'] > 20)  # Trending market
         )
         
@@ -555,7 +555,7 @@ class MeanReversionStrategy(Strategy):
         df['bb_position'] = (df['close'] - df['bollinger_lower']) / bb_diff
         
         # Fill NaN values to prevent errors
-        df = df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+        df = df.ffill().bfill().fillna(0)
         
         # Buy signal: Price significantly below mean in a non-trending market with RSI confirmation
         buy_condition = (

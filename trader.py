@@ -181,14 +181,25 @@ class AlpacaTrader:
                     # Use a percentage of buying power based on risk
                     trade_value = buying_power * risk_pct
                     quantity = max(1, int(trade_value / current_price))
+                    
+                    # Log buying power calculation for debugging
+                    logger.info(f"Buying power calculation for {symbol}: buying_power=${buying_power:.2f}, risk_pct={risk_pct:.3f}, trade_value=${trade_value:.2f}, price=${current_price:.2f}, calculated_qty={quantity}")
+                    
+                    # Check if even one share is affordable
+                    if trade_value < current_price:
+                        logger.warning(f"Trade value ${trade_value:.2f} less than price ${current_price:.2f} for {symbol} - trying minimum 1 share")
+                        quantity = 1
+                        
                 elif signal == -1 and position_exists:  # Sell
                     # Sell all shares
                     quantity = abs(current_position)
             
             # Execute the trade
             if signal == 1:  # Buy
-                if buying_power < current_price:
-                    logger.warning(f"Insufficient buying power (${buying_power:.2f}) to buy {symbol} at ${current_price:.2f}")
+                # Check if we can afford the calculated quantity
+                total_cost = current_price * quantity
+                if buying_power < total_cost:
+                    logger.warning(f"Insufficient buying power (${buying_power:.2f}) to buy {quantity} shares of {symbol} at ${current_price:.2f} (total: ${total_cost:.2f})")
                     return {'symbol': symbol, 'action': 'BUY', 'status': 'insufficient_funds', 'strategy': strategy}
                 
                 try:
@@ -200,7 +211,7 @@ class AlpacaTrader:
                         type='market',
                         time_in_force='day'
                     )
-                    logger.info(f"BUY order placed for {quantity} shares of {symbol} at ~${current_price:.2f}")
+                    logger.info(f"BUY order placed for {quantity} shares of {symbol} at ~${current_price:.2f} (total: ${total_cost:.2f})")
                     return {
                         'symbol': symbol,
                         'action': 'BUY',
@@ -212,6 +223,9 @@ class AlpacaTrader:
                     }
                 except Exception as e:
                     logger.error(f"Error placing buy order for {symbol}: {str(e)}")
+                    # Log more details about the error
+                    import traceback
+                    logger.error(f"Full error traceback: {traceback.format_exc()}")
                     return {'symbol': symbol, 'action': 'BUY', 'status': 'order_error', 'error': str(e), 'strategy': strategy}
                     
             elif signal == -1:  # Sell
@@ -240,6 +254,9 @@ class AlpacaTrader:
                     }
                 except Exception as e:
                     logger.error(f"Error placing sell order for {symbol}: {str(e)}")
+                    # Log more details about the error
+                    import traceback
+                    logger.error(f"Full error traceback: {traceback.format_exc()}")
                     return {'symbol': symbol, 'action': 'SELL', 'status': 'order_error', 'error': str(e), 'strategy': strategy}
             
         except Exception as e:

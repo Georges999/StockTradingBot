@@ -499,6 +499,12 @@ class AutoTrader:
                         current_position_count += 1
                     else:
                         logger.warning(f"Failed to open position in {symbol}: {trade_info['status']}")
+                        # Log the actual error if available
+                        if 'error' in trade_info:
+                            logger.warning(f"Error details: {trade_info['error']}")
+                    
+                    # Add a small delay between orders to avoid rate limiting
+                    time.sleep(0.5)  # 500ms delay between orders
             
             # Update positions again to get the current state
             self.trader.update_positions()

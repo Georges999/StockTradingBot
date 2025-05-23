@@ -5,7 +5,7 @@
     "update_interval": 10,
     "auto_trade_enabled": true,
     "market_regime": "auto",
-    "risk_percent": 0.5,
+    "risk_percent": 0.05,
     "max_positions": 10,
     "save_charts": true,
     "notify_on_signals": true,
