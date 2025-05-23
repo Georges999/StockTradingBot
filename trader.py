@@ -212,6 +212,10 @@ class AlpacaTrader:
                         time_in_force='day'
                     )
                     logger.info(f"BUY order placed for {quantity} shares of {symbol} at ~${current_price:.2f} (total: ${total_cost:.2f})")
+                    
+                    # Update strategy performance tracking
+                    self._update_strategy_performance(strategy, 'buy', symbol, quantity, current_price)
+                    
                     return {
                         'symbol': symbol,
                         'action': 'BUY',
@@ -243,6 +247,10 @@ class AlpacaTrader:
                         time_in_force='day'
                     )
                     logger.info(f"SELL order placed for {quantity} shares of {symbol} at ~${current_price:.2f}")
+                    
+                    # Update strategy performance tracking
+                    self._update_strategy_performance(strategy, 'sell', symbol, quantity, current_price)
+                    
                     return {
                         'symbol': symbol,
                         'action': 'SELL',

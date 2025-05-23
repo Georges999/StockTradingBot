@@ -1,0 +1,96 @@
+============================================================
+TRADING SESSION SUMMARY
+============================================================
+Generated: 2025-05-23 15:07:34
+
+OVERALL PERFORMANCE:
+------------------------------
+Total Trades: 39
+Winning Trades: 0
+Losing Trades: 0
+Win Rate: 0.0%
+Total Profit/Loss: $0.00
+
+STRATEGY PERFORMANCE:
+------------------------------
+RSI Strategy:
+  Trades: 39
+  Win Rate: 0.0%
+  P&L: $0.00
+
+SYMBOL TRADING DETAILS:
+------------------------------
+NVDA:
+  Total Bought: 5771 shares
+  Total Sold: 0 shares
+  Current Position: 5771 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 1 @ $131.82 [2025-05-23T14:52:10.089359]
+    BUY 1 @ $131.81 [2025-05-23T14:52:23.671814]
+    BUY 1 @ $131.80 [2025-05-23T14:52:37.295337]
+    BUY 1 @ $131.78 [2025-05-23T14:52:52.280579]
+    BUY 1 @ $131.78 [2025-05-23T14:53:05.787588]
+
+LTBR:
+  Total Bought: 1306 shares
+  Total Sold: 0 shares
+  Current Position: 1306 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 4 @ $15.20 [2025-05-23T14:52:09.838420]
+    BUY 3 @ $15.20 [2025-05-23T14:52:23.404619]
+    BUY 3 @ $15.20 [2025-05-23T14:52:36.803798]
+    BUY 3 @ $15.20 [2025-05-23T14:52:51.978988]
+    BUY 2 @ $15.20 [2025-05-23T14:53:05.510190]
+
+SBET:
+  Total Bought: 67379 shares
+  Total Sold: 0 shares
+  Current Position: 67379 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 1 @ $5.73 [2025-05-23T14:49:51.325357]
+    BUY 1 @ $5.73 [2025-05-23T14:50:05.509183]
+    BUY 344 @ $5.83 [2025-05-23T14:53:06.155880]
+    BUY 1 @ $5.83 [2025-05-23T14:53:19.507065]
+    BUY 1 @ $5.83 [2025-05-23T14:53:35.118319]
+
+MRUS:
+  Total Bought: 233 shares
+  Total Sold: 0 shares
+  Current Position: 233 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 1 @ $55.87 [2025-05-23T14:52:09.961151]
+    BUY 1 @ $55.87 [2025-05-23T14:52:23.543717]
+    BUY 1 @ $55.87 [2025-05-23T14:52:36.930039]
+    BUY 1 @ $56.02 [2025-05-23T14:52:52.128392]
+    BUY 1 @ $55.99 [2025-05-23T14:53:05.638322]
+
+RECENT TRADES (Last 20):
+------------------------------
+2025-05-23T14:52:36.803798: BUY 3 LTBR @ $15.20 [RSI Strategy]
+2025-05-23T14:52:51.978988: BUY 3 LTBR @ $15.20 [RSI Strategy]
+2025-05-23T14:53:05.510190: BUY 2 LTBR @ $15.20 [RSI Strategy]
+2025-05-23T14:49:10.532350: BUY 67029 SBET @ $5.72 [RSI Strategy]
+2025-05-23T14:49:24.966484: BUY 1 SBET @ $5.72 [RSI Strategy]
+2025-05-23T14:49:38.554069: BUY 1 SBET @ $5.72 [RSI Strategy]
+2025-05-23T14:49:51.325357: BUY 1 SBET @ $5.73 [RSI Strategy]
+2025-05-23T14:50:05.509183: BUY 1 SBET @ $5.73 [RSI Strategy]
+2025-05-23T14:53:06.155880: BUY 344 SBET @ $5.83 [RSI Strategy]
+2025-05-23T14:53:19.507065: BUY 1 SBET @ $5.83 [RSI Strategy]
+2025-05-23T14:53:35.118319: BUY 1 SBET @ $5.83 [RSI Strategy]
+2025-05-23T14:49:11.159564: BUY 93 MRUS @ $56.09 [RSI Strategy]
+2025-05-23T14:51:28.562015: BUY 133 MRUS @ $56.06 [RSI Strategy]
+2025-05-23T14:51:42.338901: BUY 1 MRUS @ $55.87 [RSI Strategy]
+2025-05-23T14:51:55.549865: BUY 1 MRUS @ $55.87 [RSI Strategy]
+2025-05-23T14:52:09.961151: BUY 1 MRUS @ $55.87 [RSI Strategy]
+2025-05-23T14:52:23.543717: BUY 1 MRUS @ $55.87 [RSI Strategy]
+2025-05-23T14:52:36.930039: BUY 1 MRUS @ $55.87 [RSI Strategy]
+2025-05-23T14:52:52.128392: BUY 1 MRUS @ $56.02 [RSI Strategy]
+2025-05-23T14:53:05.638322: BUY 1 MRUS @ $55.99 [RSI Strategy]
+
+============================================================
+End of Summary
+============================================================

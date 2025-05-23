@@ -1,0 +1,101 @@
+============================================================
+TRADING SESSION SUMMARY
+============================================================
+Generated: 2025-05-23 14:44:48
+
+OVERALL PERFORMANCE:
+------------------------------
+Total Trades: 52
+Winning Trades: 0
+Losing Trades: 0
+Win Rate: 0.0%
+Total Profit/Loss: $0.00
+
+STRATEGY PERFORMANCE:
+------------------------------
+MA Crossover:
+  Trades: 52
+  Win Rate: 0.0%
+  P&L: $0.00
+
+RSI Strategy:
+  Trades: 0
+  Win Rate: 0.0%
+  P&L: $0.00
+
+SYMBOL TRADING DETAILS:
+------------------------------
+VOO:
+  Total Bought: 6608 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 184 @ $534.14 [2025-05-23T14:42:34.388880]
+    BUY 738 @ $534.14 [2025-05-23T14:43:04.543928]
+    BUY 735 @ $534.14 [2025-05-23T14:43:35.011653]
+    BUY 739 @ $534.14 [2025-05-23T14:44:06.488931]
+    BUY 741 @ $534.14 [2025-05-23T14:44:38.202230]
+
+NVDA:
+  Total Bought: 18470 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 2261 @ $132.05 [2025-05-23T14:42:35.016414]
+    BUY 41 @ $132.00 [2025-05-23T14:43:05.205287]
+    BUY 54 @ $131.99 [2025-05-23T14:43:35.684561]
+    BUY 38 @ $131.95 [2025-05-23T14:44:07.146593]
+    BUY 31 @ $131.94 [2025-05-23T14:44:38.834901]
+
+GOOG:
+  Total Bought: 14217 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 21 @ $170.83 [2025-05-23T14:41:51.908867]
+    BUY 1758 @ $170.87 [2025-05-23T14:42:21.275185]
+    BUY 8 @ $170.87 [2025-05-23T14:42:49.969424]
+    BUY 19 @ $170.92 [2025-05-23T14:43:20.708782]
+    BUY 6 @ $170.84 [2025-05-23T14:43:51.076928]
+
+AAPL:
+  Total Bought: 135 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 18 @ $195.62 [2025-05-23T14:41:37.701327]
+    BUY 15 @ $195.76 [2025-05-23T14:42:35.659713]
+    BUY 1 @ $195.76 [2025-05-23T14:43:05.868875]
+    BUY 1 @ $195.79 [2025-05-23T14:43:36.325412]
+    BUY 1 @ $195.77 [2025-05-23T14:44:07.802895]
+
+RECENT TRADES (Last 20):
+------------------------------
+2025-05-23T14:38:42.478980: BUY 4 GOOG @ $170.87 [MA Crossover]
+2025-05-23T14:39:15.305644: BUY 2317 GOOG @ $170.83 [MA Crossover]
+2025-05-23T14:39:46.833525: BUY 1371 GOOG @ $170.83 [MA Crossover]
+2025-05-23T14:40:49.987757: BUY 2317 GOOG @ $170.83 [MA Crossover]
+2025-05-23T14:41:20.871206: BUY 2274 GOOG @ $170.83 [MA Crossover]
+2025-05-23T14:41:51.908867: BUY 21 GOOG @ $170.83 [MA Crossover]
+2025-05-23T14:42:21.275185: BUY 1758 GOOG @ $170.87 [MA Crossover]
+2025-05-23T14:42:49.969424: BUY 8 GOOG @ $170.87 [MA Crossover]
+2025-05-23T14:43:20.708782: BUY 19 GOOG @ $170.92 [MA Crossover]
+2025-05-23T14:43:51.076928: BUY 6 GOOG @ $170.84 [MA Crossover]
+2025-05-23T14:37:55.790601: BUY 17 AAPL @ $195.72 [MA Crossover]
+2025-05-23T14:38:27.235765: BUY 17 AAPL @ $195.70 [MA Crossover]
+2025-05-23T14:39:32.422521: BUY 33 AAPL @ $195.60 [MA Crossover]
+2025-05-23T14:40:04.057205: BUY 12 AAPL @ $195.61 [MA Crossover]
+2025-05-23T14:41:05.654343: BUY 20 AAPL @ $195.61 [MA Crossover]
+2025-05-23T14:41:37.701327: BUY 18 AAPL @ $195.62 [MA Crossover]
+2025-05-23T14:42:35.659713: BUY 15 AAPL @ $195.76 [MA Crossover]
+2025-05-23T14:43:05.868875: BUY 1 AAPL @ $195.76 [MA Crossover]
+2025-05-23T14:43:36.325412: BUY 1 AAPL @ $195.79 [MA Crossover]
+2025-05-23T14:44:07.802895: BUY 1 AAPL @ $195.77 [MA Crossover]
+
+============================================================
+End of Summary
+============================================================

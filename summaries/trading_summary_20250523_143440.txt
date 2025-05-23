@@ -1,0 +1,125 @@
+============================================================
+TRADING SESSION SUMMARY
+============================================================
+Generated: 2025-05-23 14:34:40
+
+OVERALL PERFORMANCE:
+------------------------------
+Total Trades: 108
+Winning Trades: 0
+Losing Trades: 0
+Win Rate: 0.0%
+Total Profit/Loss: $0.00
+
+STRATEGY PERFORMANCE:
+------------------------------
+MA Crossover:
+  Trades: 108
+  Win Rate: 0.0%
+  P&L: $0.00
+
+RSI Strategy:
+  Trades: 0
+  Win Rate: 0.0%
+  P&L: $0.00
+
+SYMBOL TRADING DETAILS:
+------------------------------
+SPY:
+  Total Bought: 4544 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 177 @ $581.10 [2025-05-23T14:31:43.092206]
+    BUY 256 @ $581.00 [2025-05-23T14:32:18.522725]
+    BUY 237 @ $580.93 [2025-05-23T14:32:55.769168]
+    BUY 147 @ $580.88 [2025-05-23T14:33:35.997177]
+    BUY 145 @ $581.10 [2025-05-23T14:34:18.438255]
+
+RSP:
+  Total Bought: 20474 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 232 @ $174.69 [2025-05-23T14:31:43.724062]
+    BUY 1294 @ $174.66 [2025-05-23T14:32:19.148937]
+    BUY 1351 @ $174.66 [2025-05-23T14:32:56.390637]
+    BUY 794 @ $174.71 [2025-05-23T14:33:36.632569]
+    BUY 1625 @ $174.71 [2025-05-23T14:34:19.097029]
+
+IGV:
+  Total Bought: 8627 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 2251 @ $102.54 [2025-05-23T14:31:44.346623]
+    BUY 220 @ $102.54 [2025-05-23T14:32:19.776711]
+    BUY 230 @ $102.54 [2025-05-23T14:32:57.016709]
+    BUY 1543 @ $102.54 [2025-05-23T14:33:37.258251]
+    BUY 278 @ $102.54 [2025-05-23T14:34:19.725913]
+
+XLV:
+  Total Bought: 676 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 177 @ $130.44 [2025-05-23T14:31:44.986528]
+    BUY 17 @ $130.42 [2025-05-23T14:32:20.406290]
+    BUY 18 @ $130.41 [2025-05-23T14:32:57.649236]
+    BUY 121 @ $130.42 [2025-05-23T14:33:37.908971]
+    BUY 21 @ $130.45 [2025-05-23T14:34:20.388587]
+
+XLU:
+  Total Bought: 113 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 28 @ $80.98 [2025-05-23T14:31:45.753970]
+    BUY 3 @ $81.03 [2025-05-23T14:32:21.038889]
+    BUY 3 @ $81.02 [2025-05-23T14:32:58.286034]
+    BUY 20 @ $81.03 [2025-05-23T14:33:38.532398]
+    BUY 4 @ $81.02 [2025-05-23T14:34:21.031116]
+
+NVDA:
+  Total Bought: 34136 shares
+  Total Sold: 0 shares
+  Current Position: 0 shares
+  Realized P&L: $0.00
+  Recent Trades:
+    BUY 1774 @ $132.21 [2025-05-23T14:32:02.676495]
+    BUY 1866 @ $132.26 [2025-05-23T14:32:35.993612]
+    BUY 2304 @ $132.25 [2025-05-23T14:33:15.346770]
+    BUY 2312 @ $132.31 [2025-05-23T14:33:59.735470]
+    BUY 1900 @ $132.28 [2025-05-23T14:34:39.198371]
+
+RECENT TRADES (Last 20):
+------------------------------
+2025-05-23T14:33:38.532398: BUY 20 XLU @ $81.03 [MA Crossover]
+2025-05-23T14:34:21.031116: BUY 4 XLU @ $81.02 [MA Crossover]
+2025-05-23T14:24:03.289994: BUY 1925 NVDA @ $132.02 [MA Crossover]
+2025-05-23T14:24:42.016730: BUY 1813 NVDA @ $132.08 [MA Crossover]
+2025-05-23T14:25:18.128866: BUY 1554 NVDA @ $132.15 [MA Crossover]
+2025-05-23T14:25:52.043096: BUY 2487 NVDA @ $132.05 [MA Crossover]
+2025-05-23T14:26:33.272300: BUY 1113 NVDA @ $132.26 [MA Crossover]
+2025-05-23T14:27:08.697349: BUY 1676 NVDA @ $132.14 [MA Crossover]
+2025-05-23T14:27:42.788954: BUY 2670 NVDA @ $132.17 [MA Crossover]
+2025-05-23T14:28:17.609722: BUY 1993 NVDA @ $132.19 [MA Crossover]
+2025-05-23T14:28:53.677743: BUY 1914 NVDA @ $132.04 [MA Crossover]
+2025-05-23T14:29:30.392159: BUY 1054 NVDA @ $132.09 [MA Crossover]
+2025-05-23T14:30:05.781359: BUY 925 NVDA @ $132.12 [MA Crossover]
+2025-05-23T14:30:46.723035: BUY 2701 NVDA @ $132.28 [MA Crossover]
+2025-05-23T14:31:24.767159: BUY 2155 NVDA @ $132.25 [MA Crossover]
+2025-05-23T14:32:02.676495: BUY 1774 NVDA @ $132.21 [MA Crossover]
+2025-05-23T14:32:35.993612: BUY 1866 NVDA @ $132.26 [MA Crossover]
+2025-05-23T14:33:15.346770: BUY 2304 NVDA @ $132.25 [MA Crossover]
+2025-05-23T14:33:59.735470: BUY 2312 NVDA @ $132.31 [MA Crossover]
+2025-05-23T14:34:39.198371: BUY 1900 NVDA @ $132.28 [MA Crossover]
+
+============================================================
+End of Summary
+============================================================
