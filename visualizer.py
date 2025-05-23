@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Simple visualizer module for stock trading charts and performance metrics.
+Optimized visualizer module for stock trading charts with minimal lag.
 """
 
 import os
@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class Visualizer:
-    """Simple class for creating and saving stock charts."""
+    """Optimized class for creating and saving stock charts with minimal lag."""
     
     def __init__(self, figure_dir='figures'):
         """
@@ -29,19 +29,35 @@ class Visualizer:
             figure_dir (str): Directory to save figures
         """
         self.figure_dir = figure_dir
+        self.max_figures = 10  # Reduced from 30 to 10 for less disk usage
+        self.last_plot_time = {}  # Track when we last plotted each symbol to avoid excessive plotting
+        self.plot_interval = 30  # Only create new plots every 30 seconds per symbol
         
         # Create figures directory if it doesn't exist
         if not os.path.exists(figure_dir):
             os.makedirs(figure_dir)
             logger.info(f"Created directory: {figure_dir}")
         
-        # Configure matplotlib style
-        plt.style.use('ggplot')
-        plt.rcParams['figure.figsize'] = (10, 6)
+        # Configure matplotlib for better performance
+        plt.style.use('default')  # Use default instead of ggplot for better performance
+        plt.rcParams['figure.figsize'] = (8, 5)  # Smaller figure size
+        plt.rcParams['figure.dpi'] = 60  # Lower DPI for faster rendering
+        plt.rcParams['savefig.dpi'] = 60  # Lower save DPI
+        plt.rcParams['axes.grid'] = False  # Disable grid by default for performance
+    
+    def _should_create_plot(self, symbol):
+        """Check if we should create a new plot for this symbol."""
+        current_time = datetime.now().timestamp()
+        last_time = self.last_plot_time.get(symbol, 0)
+        
+        if current_time - last_time > self.plot_interval:
+            self.last_plot_time[symbol] = current_time
+            return True
+        return False
     
     def plot_stock_data(self, data, symbol, save=True, filename=None):
         """
-        Plot basic stock price data with volume.
+        Plot basic stock price data - SIMPLIFIED VERSION.
         
         Args:
             data (pd.DataFrame): DataFrame with OHLCV data
@@ -56,47 +72,50 @@ class Visualizer:
             logger.warning("Cannot plot empty data")
             return None, None
         
-        # Create a figure with two subplots
-        fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+        # Skip if we plotted recently
+        if not self._should_create_plot(symbol):
+            return None, None
         
-        # Plot price data
-        ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
-        
-        # Add moving averages if available
-        for col in data.columns:
-            if col.startswith('sma_') or col.startswith('ema_'):
-                ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
-        
-        # Plot volume
-        ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
-        
-        # Format axes
-        ax1.set_title(f'{symbol} Stock Price', fontsize=14)
-        ax1.set_ylabel('Price ($)', fontsize=12)
-        ax1.grid(True, alpha=0.3)
-        ax1.legend(loc='best')
-        
-        ax2.set_xlabel('Date', fontsize=12)
-        ax2.set_ylabel('Volume', fontsize=12)
-        ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        
-        # Save figure if requested
-        if save:
-            if filename is None:
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{symbol}_price_{timestamp}.png"
+        try:
+            # Limit data to last 30 points for performance
+            if len(data) > 30:
+                data = data.iloc[-30:]
             
-            filepath = os.path.join(self.figure_dir, filename)
-            plt.savefig(filepath, dpi=100)
-            logger.info(f"Saved figure to {filepath}")
-        
-        return fig, (ax1, ax2)
+            # Create simple single subplot (no volume for performance)
+            fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+            
+            # Plot only close price - no moving averages for speed
+            ax.plot(data.index, data['close'], label='Close', color='blue', linewidth=1)
+            
+            # Minimal formatting
+            ax.set_title(f'{symbol}', fontsize=12)
+            ax.set_ylabel('Price ($)', fontsize=10)
+            
+            plt.tight_layout()
+            
+            # Save if requested
+            if save:
+                if filename is None:
+                    timestamp = datetime.now().strftime('%H%M%S')  # Only time, not date
+                    filename = f"{symbol}_{timestamp}.png"
+                
+                filepath = os.path.join(self.figure_dir, filename)
+                plt.savefig(filepath, dpi=60, bbox_inches='tight')
+                logger.debug(f"Saved basic chart: {filepath}")
+            
+            # Close immediately to free memory
+            plt.close(fig)
+            
+            return fig, ax
+            
+        except Exception as e:
+            logger.error(f"Error plotting stock data: {str(e)}")
+            plt.close()
+            return None, None
     
     def plot_signals(self, data, symbol, save=True, filename=None):
         """
-        Plot stock data with trading signals.
+        Plot stock data with trading signals - OPTIMIZED VERSION.
         
         Args:
             data (pd.DataFrame): DataFrame with OHLCV data and signals
@@ -115,77 +134,66 @@ class Visualizer:
             logger.warning("No signal column in data")
             return self.plot_stock_data(data, symbol, save, filename)
         
+        # Skip if we plotted recently
+        if not self._should_create_plot(symbol):
+            return None, None
+        
         try:
-            # Limit the data points to prevent memory issues (use last 60 points)
-            if len(data) > 60:
-                data = data.iloc[-60:]
+            # Limit data to last 30 points for performance
+            if len(data) > 30:
+                data = data.iloc[-30:]
             
-            # Use a lower DPI to reduce file size and processing time
-            plt.rcParams['figure.dpi'] = 80
+            # Single subplot only - no volume for performance
+            fig, ax = plt.subplots(1, 1, figsize=(8, 4))
             
-            # Create figure and axes
-            fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+            # Plot close price
+            ax.plot(data.index, data['close'], label='Close', color='blue', linewidth=1.5)
             
-            # Plot price data
-            ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
+            # Add only ONE moving average for performance
+            if 'ema_20' in data.columns:
+                ax.plot(data.index, data['ema_20'], label='EMA20', color='orange', linewidth=1, alpha=0.7)
+            elif 'sma_20' in data.columns:
+                ax.plot(data.index, data['sma_20'], label='SMA20', color='orange', linewidth=1, alpha=0.7)
             
-            # Add moving averages if available (limit to just a few for performance)
-            ma_count = 0
-            for col in data.columns:
-                if col.startswith('sma_') or col.startswith('ema_'):
-                    ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
-                    ma_count += 1
-                    if ma_count >= 2:  # Limit to 2 MAs
-                        break
-            
-            # Plot buy signals
+            # Plot signals
             buy_signals = data[data['signal'] == 1]
             if not buy_signals.empty:
-                ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
+                ax.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=60, label='Buy', zorder=5)
             
-            # Plot sell signals
             sell_signals = data[data['signal'] == -1]
             if not sell_signals.empty:
-                ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
+                ax.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=60, label='Sell', zorder=5)
             
-            # Plot volume
-            ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
-            
-            # Format axes
-            ax1.set_title(f'{symbol} Trading Signals', fontsize=14)
-            ax1.set_ylabel('Price ($)', fontsize=12)
-            ax1.grid(True, alpha=0.3)
-            ax1.legend(loc='best')
-            
-            ax2.set_xlabel('Date', fontsize=12)
-            ax2.set_ylabel('Volume', fontsize=12)
-            ax2.grid(True, alpha=0.3)
+            # Minimal formatting
+            ax.set_title(f'{symbol} Signals', fontsize=12)
+            ax.set_ylabel('Price ($)', fontsize=10)
+            ax.legend(loc='upper left', fontsize=9)
             
             plt.tight_layout()
             
-            # Save figure if requested
+            # Save if requested
             if save:
                 if filename is None:
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    timestamp = datetime.now().strftime('%H%M%S')
                     filename = f"{symbol}_signals_{timestamp}.png"
                 
                 filepath = os.path.join(self.figure_dir, filename)
-                plt.savefig(filepath, dpi=80, bbox_inches='tight')
-                logger.info(f"Saved signals chart to {filepath}")
+                plt.savefig(filepath, dpi=60, bbox_inches='tight')
+                logger.debug(f"Saved signals chart: {filepath}")
             
-            # Close the figure immediately to free up memory
+            # Close immediately to free memory
             plt.close(fig)
             
-            return fig, (ax1, ax2)
+            return fig, ax
             
         except Exception as e:
             logger.error(f"Error plotting signals: {str(e)}")
-            plt.close()  # Make sure we close any open figures
+            plt.close()
             return None, None
     
     def plot_rsi(self, data, symbol, save=True, filename=None):
         """
-        Plot stock data with RSI indicator.
+        Plot stock data with RSI - SIMPLIFIED VERSION.
         
         Args:
             data (pd.DataFrame): DataFrame with OHLCV data and RSI
@@ -202,110 +210,100 @@ class Visualizer:
         
         if 'rsi' not in data.columns:
             logger.warning("No RSI column in data")
-            return self.plot_stock_data(data, symbol, save, filename)
+            return self.plot_signals(data, symbol, save, filename)
+        
+        # Skip if we plotted recently
+        if not self._should_create_plot(symbol):
+            return None, None
         
         try:
-            # Limit the data points to prevent memory issues (use last 60 points)
-            if len(data) > 60:
-                data = data.iloc[-60:]
+            # Limit data to last 30 points for performance
+            if len(data) > 30:
+                data = data.iloc[-30:]
             
-            # Use a lower DPI to reduce file size and processing time
-            plt.rcParams['figure.dpi'] = 80
-            
-            # Create figure with 3 subplots
-            fig, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, sharex=True)
+            # Only 2 subplots - price and RSI (no volume)
+            fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1]}, figsize=(8, 5), sharex=True)
             
             # Plot price data
-            ax1.plot(data.index, data['close'], label='Close Price', color='blue', linewidth=1.5)
+            ax1.plot(data.index, data['close'], label='Close', color='blue', linewidth=1.5)
             
-            # Add moving averages if available (limit to just a few for performance)
-            ma_count = 0
-            for col in data.columns:
-                if col.startswith('sma_') or col.startswith('ema_'):
-                    ax1.plot(data.index, data[col], label=col.upper(), linewidth=1, alpha=0.8)
-                    ma_count += 1
-                    if ma_count >= 2:  # Limit to 2 MAs
-                        break
-            
-            # Plot buy signals if available
+            # Add signals if available
             if 'signal' in data.columns:
                 buy_signals = data[data['signal'] == 1]
                 if not buy_signals.empty:
-                    ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=100, label='Buy')
+                    ax1.scatter(buy_signals.index, buy_signals['close'], marker='^', color='green', s=50, label='Buy')
                 
-                # Plot sell signals
                 sell_signals = data[data['signal'] == -1]
                 if not sell_signals.empty:
-                    ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=100, label='Sell')
-            
-            # Plot volume
-            ax2.bar(data.index, data['volume'], color='gray', alpha=0.5)
+                    ax1.scatter(sell_signals.index, sell_signals['close'], marker='v', color='red', s=50, label='Sell')
             
             # Plot RSI
-            ax3.plot(data.index, data['rsi'], label='RSI', color='purple', linewidth=1.5)
-            ax3.axhline(y=70, color='red', linestyle='--', alpha=0.5)
-            ax3.axhline(y=30, color='green', linestyle='--', alpha=0.5)
-            ax3.text(data.index[0], 70, 'Overbought', color='red', fontsize=10)
-            ax3.text(data.index[0], 30, 'Oversold', color='green', fontsize=10)
-            ax3.set_ylim(0, 100)
+            ax2.plot(data.index, data['rsi'], label='RSI', color='purple', linewidth=1.5)
+            ax2.axhline(y=70, color='red', linestyle='--', alpha=0.5, linewidth=1)
+            ax2.axhline(y=30, color='green', linestyle='--', alpha=0.5, linewidth=1)
+            ax2.set_ylim(0, 100)
             
-            # Format axes
-            ax1.set_title(f'{symbol} with RSI', fontsize=14)
-            ax1.set_ylabel('Price ($)', fontsize=12)
-            ax1.grid(True, alpha=0.3)
-            ax1.legend(loc='best')
+            # Minimal formatting
+            ax1.set_title(f'{symbol} with RSI', fontsize=12)
+            ax1.set_ylabel('Price ($)', fontsize=10)
+            ax1.legend(loc='upper left', fontsize=9)
             
-            ax2.set_ylabel('Volume', fontsize=12)
-            ax2.grid(True, alpha=0.3)
-            
-            ax3.set_xlabel('Date', fontsize=12)
-            ax3.set_ylabel('RSI', fontsize=12)
-            ax3.grid(True, alpha=0.3)
+            ax2.set_xlabel('Date', fontsize=10)
+            ax2.set_ylabel('RSI', fontsize=10)
             
             plt.tight_layout()
             
-            # Save figure if requested
+            # Save if requested
             if save:
                 if filename is None:
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    timestamp = datetime.now().strftime('%H%M%S')
                     filename = f"{symbol}_rsi_{timestamp}.png"
                 
                 filepath = os.path.join(self.figure_dir, filename)
-                plt.savefig(filepath, dpi=80, bbox_inches='tight')
-                logger.info(f"Saved RSI chart to {filepath}")
+                plt.savefig(filepath, dpi=60, bbox_inches='tight')
+                logger.debug(f"Saved RSI chart: {filepath}")
             
-            # Close the figure immediately to free up memory
+            # Close immediately to free memory
             plt.close(fig)
             
-            return fig, (ax1, ax2, ax3)
+            return fig, (ax1, ax2)
             
         except Exception as e:
             logger.error(f"Error plotting RSI: {str(e)}")
-            plt.close()  # Make sure we close any open figures
+            plt.close()
             return None, None
     
-    def clean_old_figures(self, max_figures=20):
+    def clean_old_figures(self, max_figures=None):
         """
-        Clean old figures, keeping only the most recent ones.
+        Clean old figures more aggressively to prevent lag.
         
         Args:
             max_figures (int): Maximum number of figures to keep
         """
+        if max_figures is None:
+            max_figures = self.max_figures
+        
         if not os.path.exists(self.figure_dir):
             logger.warning(f"Figure directory {self.figure_dir} does not exist")
             return
             
-        files = [os.path.join(self.figure_dir, f) for f in os.listdir(self.figure_dir) if f.endswith('.png')]
-        files.sort(key=os.path.getmtime, reverse=True)  # Sort by modification time, newest first
-        
-        # Delete old files if we have more than max_figures
-        if len(files) > max_figures:
-            for file_to_delete in files[max_figures:]:
-                try:
-                    os.remove(file_to_delete)
-                    logger.info(f"Deleted old figure: {file_to_delete}")
-                except Exception as e:
-                    logger.error(f"Error deleting {file_to_delete}: {str(e)}")
+        try:
+            files = [os.path.join(self.figure_dir, f) for f in os.listdir(self.figure_dir) if f.endswith('.png')]
+            files.sort(key=os.path.getmtime, reverse=True)  # Sort by modification time, newest first
+            
+            # Keep only the most recent figures
+            if len(files) > max_figures:
+                files_to_delete = files[max_figures:]
+                for file_to_delete in files_to_delete:
+                    try:
+                        os.remove(file_to_delete)
+                        logger.debug(f"Deleted old figure: {os.path.basename(file_to_delete)}")
+                    except Exception as e:
+                        logger.error(f"Error deleting {file_to_delete}: {str(e)}")
+                        
+                logger.info(f"Cleaned {len(files_to_delete)} old figures, kept {max_figures}")
+        except Exception as e:
+            logger.error(f"Error cleaning figures: {str(e)}")
 
 # Simple test function
 if __name__ == "__main__":

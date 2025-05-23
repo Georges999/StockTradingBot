@@ -416,6 +416,175 @@ class AlpacaTrader:
             }
         
         return performance
+    
+    def generate_trading_summary(self):
+        """
+        Generate a comprehensive trading summary for saving to file.
+        
+        Returns:
+            dict: Trading summary with all trades, positions, and performance metrics
+        """
+        summary = {
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'total_trades': 0,
+            'total_profit_loss': 0.0,
+            'winning_trades': 0,
+            'losing_trades': 0,
+            'strategies': {},
+            'symbols': {},
+            'all_trades': []
+        }
+        
+        # Collect all trades and performance data
+        for strategy, data in self.strategy_performance.items():
+            strategy_pl = data['profit_loss']
+            summary['total_profit_loss'] += strategy_pl
+            summary['total_trades'] += data['trades']
+            summary['winning_trades'] += data['wins']
+            summary['losing_trades'] += data['losses']
+            
+            # Strategy-level summary
+            summary['strategies'][strategy] = {
+                'total_trades': data['trades'],
+                'wins': data['wins'],
+                'losses': data['losses'],
+                'win_rate': (data['wins'] / data['trades'] * 100) if data['trades'] > 0 else 0,
+                'profit_loss': strategy_pl
+            }
+            
+            # Symbol-level details
+            for symbol, symbol_data in data['symbols'].items():
+                if symbol not in summary['symbols']:
+                    summary['symbols'][symbol] = {
+                        'trades': [],
+                        'current_position': 0,
+                        'total_bought': 0,
+                        'total_sold': 0,
+                        'realized_pl': 0.0
+                    }
+                
+                # Add trades for this symbol
+                for trade in symbol_data['trades']:
+                    trade_record = {
+                        'symbol': symbol,
+                        'strategy': strategy,
+                        'action': trade['action'],
+                        'quantity': trade['quantity'],
+                        'price': trade['price'],
+                        'timestamp': trade['timestamp']
+                    }
+                    
+                    if trade['action'] == 'buy':
+                        summary['symbols'][symbol]['total_bought'] += trade['quantity']
+                    elif trade['action'] == 'sell':
+                        summary['symbols'][symbol]['total_sold'] += trade['quantity']
+                        if 'total_pl' in trade:
+                            summary['symbols'][symbol]['realized_pl'] += trade['total_pl']
+                            trade_record['profit_loss'] = trade['total_pl']
+                    
+                    summary['symbols'][symbol]['trades'].append(trade_record)
+                    summary['all_trades'].append(trade_record)
+                
+                summary['symbols'][symbol]['current_position'] = symbol_data['position']
+        
+        # Calculate overall win rate
+        summary['overall_win_rate'] = (summary['winning_trades'] / summary['total_trades'] * 100) if summary['total_trades'] > 0 else 0
+        
+        return summary
+    
+    def save_trading_summary(self, filename=None):
+        """
+        Save a trading summary to a file.
+        
+        Args:
+            filename (str, optional): Filename to save to. If None, uses timestamp.
+            
+        Returns:
+            str: Path to the saved file
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"trading_summary_{timestamp}.txt"
+        
+        # Create summaries directory if it doesn't exist
+        summaries_dir = "summaries"
+        if not os.path.exists(summaries_dir):
+            os.makedirs(summaries_dir)
+            logger.info(f"Created directory: {summaries_dir}")
+        
+        filepath = os.path.join(summaries_dir, filename)
+        
+        try:
+            summary = self.generate_trading_summary()
+            
+            with open(filepath, 'w') as f:
+                f.write("=" * 60 + "\n")
+                f.write("TRADING SESSION SUMMARY\n")
+                f.write("=" * 60 + "\n")
+                f.write(f"Generated: {summary['timestamp']}\n\n")
+                
+                # Overall Performance
+                f.write("OVERALL PERFORMANCE:\n")
+                f.write("-" * 30 + "\n")
+                f.write(f"Total Trades: {summary['total_trades']}\n")
+                f.write(f"Winning Trades: {summary['winning_trades']}\n")
+                f.write(f"Losing Trades: {summary['losing_trades']}\n")
+                f.write(f"Win Rate: {summary['overall_win_rate']:.1f}%\n")
+                f.write(f"Total Profit/Loss: ${summary['total_profit_loss']:.2f}\n\n")
+                
+                # Strategy Performance
+                if summary['strategies']:
+                    f.write("STRATEGY PERFORMANCE:\n")
+                    f.write("-" * 30 + "\n")
+                    for strategy, metrics in summary['strategies'].items():
+                        f.write(f"{strategy}:\n")
+                        f.write(f"  Trades: {metrics['total_trades']}\n")
+                        f.write(f"  Win Rate: {metrics['win_rate']:.1f}%\n")
+                        f.write(f"  P&L: ${metrics['profit_loss']:.2f}\n\n")
+                
+                # Symbol Details
+                if summary['symbols']:
+                    f.write("SYMBOL TRADING DETAILS:\n")
+                    f.write("-" * 30 + "\n")
+                    for symbol, data in summary['symbols'].items():
+                        f.write(f"{symbol}:\n")
+                        f.write(f"  Total Bought: {data['total_bought']} shares\n")
+                        f.write(f"  Total Sold: {data['total_sold']} shares\n")
+                        f.write(f"  Current Position: {data['current_position']} shares\n")
+                        f.write(f"  Realized P&L: ${data['realized_pl']:.2f}\n")
+                        
+                        if data['trades']:
+                            f.write(f"  Recent Trades:\n")
+                            # Show last 5 trades for this symbol
+                            recent_trades = data['trades'][-5:]
+                            for trade in recent_trades:
+                                f.write(f"    {trade['action'].upper()} {trade['quantity']} @ ${trade['price']:.2f}")
+                                if 'profit_loss' in trade:
+                                    f.write(f" (P&L: ${trade['profit_loss']:.2f})")
+                                f.write(f" [{trade['timestamp']}]\n")
+                        f.write("\n")
+                
+                # All Trades Summary (limited to last 20 for brevity)
+                if summary['all_trades']:
+                    f.write("RECENT TRADES (Last 20):\n")
+                    f.write("-" * 30 + "\n")
+                    recent_all_trades = summary['all_trades'][-20:]
+                    for trade in recent_all_trades:
+                        f.write(f"{trade['timestamp']}: {trade['action'].upper()} {trade['quantity']} {trade['symbol']} @ ${trade['price']:.2f}")
+                        if 'profit_loss' in trade:
+                            f.write(f" (P&L: ${trade['profit_loss']:.2f})")
+                        f.write(f" [{trade['strategy']}]\n")
+                
+                f.write("\n" + "=" * 60 + "\n")
+                f.write("End of Summary\n")
+                f.write("=" * 60 + "\n")
+            
+            logger.info(f"Trading summary saved to {filepath}")
+            return filepath
+            
+        except Exception as e:
+            logger.error(f"Error saving trading summary: {str(e)}")
+            return None
 
 class StrategySelector:
     """Class for selecting the best trading strategy based on historical performance."""

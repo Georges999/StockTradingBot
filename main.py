@@ -145,8 +145,8 @@ class StockTradingBot:
                     except Exception as e:
                         logger.error(f"Error processing {symbol}: {str(e)}")
                 
-                # Clean up old figures to avoid filling up the disk
-                self.visualizer.clean_old_figures(max_figures=30)
+                # Clean up old figures to avoid filling up the disk and reduce lag
+                self.visualizer.clean_old_figures(max_figures=5)
                 
                 # Increment iteration counter
                 iteration += 1

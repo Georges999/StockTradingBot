@@ -514,15 +514,15 @@ class AutoTradingInterface(tk.Tk):
             return
         
         try:
-            # Stop the auto trader
+            # Stop the auto trader (this will automatically save the summary)
             self.auto_trader.stop()
             
             # Update UI
             self.start_button.config(state=tk.NORMAL)
             self.stop_button.config(state=tk.DISABLED)
-            self.status_var.set("Bot stopped")
+            self.status_var.set("Bot stopped - Trading summary saved")
             
-            logger.info("Bot stopped")
+            logger.info("Bot stopped via GUI")
             
         except Exception as e:
             messagebox.showerror("Error Stopping Bot", f"Error: {str(e)}")

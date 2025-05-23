@@ -231,8 +231,21 @@ class AutoTrader:
             logger.warning("AutoTrader is not running")
             return
         
-        self.running = False
         logger.info("Stopping AutoTrader...")
+        self.running = False
+        
+        # Generate and save trading summary
+        if self.trader and hasattr(self.trader, 'save_trading_summary'):
+            try:
+                summary_path = self.trader.save_trading_summary()
+                if summary_path:
+                    logger.info(f"Trading summary saved: {summary_path}")
+                else:
+                    logger.warning("Failed to save trading summary")
+            except Exception as e:
+                logger.error(f"Error generating trading summary: {str(e)}")
+        
+        logger.info("AutoTrader stopped")
     
     def _run_loop(self):
         """Main trading loop."""
@@ -251,9 +264,9 @@ class AutoTrader:
                 # Process all symbols
                 self._process_symbols()
                 
-                # Clean up old figures - do this less frequently to save processing time
-                if cycle_count % 5 == 0:
-                    self.visualizer.clean_old_figures(max_figures=30)
+                # Clean up old figures - do this more frequently to save processing time and prevent lag
+                if cycle_count % 2 == 0:  # Every 2 cycles instead of 5
+                    self.visualizer.clean_old_figures(max_figures=5)  # Keep only 5 instead of 30
                 
                 # Wait for the next update - use a shorter interval for more active trading
                 actual_interval = min(self.update_interval, 10)  # Cap at 10 seconds max
@@ -269,6 +282,15 @@ class AutoTrader:
         except Exception as e:
             logger.error(f"Error in trading loop: {str(e)}")
         finally:
+            # Generate and save trading summary when loop stops
+            if self.trader and hasattr(self.trader, 'save_trading_summary'):
+                try:
+                    summary_path = self.trader.save_trading_summary()
+                    if summary_path:
+                        logger.info(f"Trading summary saved on loop termination: {summary_path}")
+                except Exception as e:
+                    logger.error(f"Error generating trading summary in finally block: {str(e)}")
+            
             logger.info("Trading loop stopped")
     
     def _process_symbols(self):
@@ -365,14 +387,34 @@ class AutoTrader:
                 logger.warning("Auto-trading is ENABLED but no signals data available for trading.")
     
     def _create_visualizations(self, symbol, signals):
-        """Create visualizations for the symbol."""
+        """Create visualizations for the symbol - OPTIMIZED VERSION."""
         try:
-            # For each strategy, create appropriate visualization
-            for strategy_name, signal_df in signals.items():
+            # Only create visualizations for the best performing strategy to reduce lag
+            # or limit to just 1-2 key strategies
+            
+            prioritized_strategies = ['Dual Strategy System', 'MA Crossover', 'RSI Strategy']
+            
+            # Find the first available prioritized strategy
+            strategy_to_plot = None
+            for strategy_name in prioritized_strategies:
+                if strategy_name in signals:
+                    strategy_to_plot = strategy_name
+                    break
+            
+            # If no prioritized strategy found, take the first available
+            if not strategy_to_plot and signals:
+                strategy_to_plot = list(signals.keys())[0]
+            
+            # Create visualization for only ONE strategy to reduce lag
+            if strategy_to_plot:
+                signal_df = signals[strategy_to_plot]
+                
+                # Create appropriate visualization based on available indicators
                 if 'rsi' in signal_df.columns:
-                    self.visualizer.plot_rsi(signal_df, f"{symbol}_{strategy_name}")
+                    self.visualizer.plot_rsi(signal_df, f"{symbol}_{strategy_to_plot}")
                 else:
-                    self.visualizer.plot_signals(signal_df, f"{symbol}_{strategy_name}")
+                    self.visualizer.plot_signals(signal_df, f"{symbol}_{strategy_to_plot}")
+                    
         except Exception as e:
             logger.error(f"Error creating visualizations for {symbol}: {str(e)}")
     

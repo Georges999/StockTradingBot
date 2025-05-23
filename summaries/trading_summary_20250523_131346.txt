@@ -1,0 +1,66 @@
+============================================================
+TRADING SESSION SUMMARY
+============================================================
+Generated: 2025-05-23 13:13:46
+
+OVERALL PERFORMANCE:
+------------------------------
+Total Trades: 6
+Winning Trades: 4
+Losing Trades: 2
+Win Rate: 66.7%
+Total Profit/Loss: $115.25
+
+STRATEGY PERFORMANCE:
+------------------------------
+MA Crossover:
+  Trades: 4
+  Win Rate: 75.0%
+  P&L: $125.50
+
+RSI Strategy:
+  Trades: 2
+  Win Rate: 50.0%
+  P&L: $-10.25
+
+SYMBOL TRADING DETAILS:
+------------------------------
+AAPL:
+  Total Bought: 20 shares
+  Total Sold: 10 shares
+  Current Position: 10 shares
+  Realized P&L: $50.00
+  Recent Trades:
+    BUY 20 @ $150.00 [2024-01-01T10:00:00]
+    SELL 10 @ $155.00 (P&L: $50.00) [2024-01-01T15:00:00]
+
+MSFT:
+  Total Bought: 15 shares
+  Total Sold: 15 shares
+  Current Position: 0 shares
+  Realized P&L: $75.00
+  Recent Trades:
+    BUY 15 @ $200.00 [2024-01-02T10:00:00]
+    SELL 15 @ $205.00 (P&L: $75.00) [2024-01-02T15:00:00]
+
+GOOGL:
+  Total Bought: 10 shares
+  Total Sold: 5 shares
+  Current Position: 5 shares
+  Realized P&L: $-10.00
+  Recent Trades:
+    BUY 10 @ $100.00 [2024-01-03T10:00:00]
+    SELL 5 @ $98.00 (P&L: $-10.00) [2024-01-03T15:00:00]
+
+RECENT TRADES (Last 20):
+------------------------------
+2024-01-01T10:00:00: BUY 20 AAPL @ $150.00 [MA Crossover]
+2024-01-01T15:00:00: SELL 10 AAPL @ $155.00 (P&L: $50.00) [MA Crossover]
+2024-01-02T10:00:00: BUY 15 MSFT @ $200.00 [MA Crossover]
+2024-01-02T15:00:00: SELL 15 MSFT @ $205.00 (P&L: $75.00) [MA Crossover]
+2024-01-03T10:00:00: BUY 10 GOOGL @ $100.00 [RSI Strategy]
+2024-01-03T15:00:00: SELL 5 GOOGL @ $98.00 (P&L: $-10.00) [RSI Strategy]
+
+============================================================
+End of Summary
+============================================================
